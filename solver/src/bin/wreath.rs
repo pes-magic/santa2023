@@ -392,6 +392,9 @@ fn solve_wreath() {
         if !row.puzzle_type.starts_with("wreath") {
             continue;
         }
+        if row.puzzle_type.ends_with("100") {
+            continue;
+        }
         let moves = &puzzle_info[&row.puzzle_type];
         if let Some(result) = beam_search(&row, &moves, &submission_df[&id]) {
             println!("solved id: {}", id);
