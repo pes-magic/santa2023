@@ -130,40 +130,6 @@ fn load_puzzle() -> Vec<Puzzle> {
     puzzles
 }
 
-fn gen_cost_table(
-    sol_state: &Vec<i8>,
-    valid_moves: &Vec<Vec<(usize, usize)>>,
-    piece_num: usize,
-    piece_kind: usize,
-) -> Vec<Vec<i32>> {
-    let mut cost_table = vec![vec![100000000; piece_num]; piece_kind];
-    let mut g = vec![Vec::new(); piece_num];
-    for v in valid_moves.iter() {
-        for (i, j) in v.iter() {
-            g[*i].push(*j);
-            g[*j].push(*i);
-        }
-    }
-    for i in 0..piece_kind {
-        let mut qu = std::collections::VecDeque::new();
-        for (idx, v) in sol_state.iter().enumerate() {
-            if *v as usize == i {
-                cost_table[i][idx] = 0;
-                qu.push_back(idx);
-            }
-        }
-        while let Some(v) = qu.pop_front() {
-            for nv in g[v].iter() {
-                if cost_table[i][v] + 1 < cost_table[i][*nv] {
-                    cost_table[i][*nv] = cost_table[i][v] + 1;
-                    qu.push_back(*nv);
-                }
-            }
-        }
-    }
-    cost_table
-}
-
 struct History {
     action: u8,
     cost: i16,
@@ -179,23 +145,67 @@ struct Node {
 fn calc_cost(
     state: &Vec<i8>,
     sol_state: &Vec<i8>,
-    cost_table: &Vec<Vec<i32>>,
+    wreath_l: &Vec<usize>,
+    wreath_r: &Vec<usize>,
+    idx_a: i8,
+    idx_b: i8,
     num_wildcards: i16,
 ) -> i32 {
     let mut dif = 0;
 
-    let mut cost = 0;
     for (i, v) in state.iter().enumerate() {
-        cost += cost_table[*v as usize][i];
         if sol_state[i] != *v {
             dif += 1;
         }
     }
     if dif <= num_wildcards {
-        0
-    } else {
-        cost
+        return 0;
     }
+    let mut cost = 0;
+    let mut checked = vec![false; state.len()];
+    for i in 0..wreath_l.len() {
+        if checked[wreath_l[i]] || checked[wreath_l[(i + 25) % 100]] {
+            continue;
+        }
+        if state[wreath_l[i]] == idx_b && state[wreath_l[(i + 25) % 100]] == idx_b {
+            cost += i.min(100 - i) as i32;
+            checked[wreath_l[i]] = true;
+            checked[wreath_l[(i + 25) % 100]] = true;
+        }
+    }
+    for i in 0..wreath_r.len() {
+        if checked[wreath_r[i]] || checked[wreath_r[(i + 100 - 26) % 100]] {
+            continue;
+        }
+        if state[wreath_r[i]] == idx_a && state[wreath_r[(i + 100 - 26) % 100]] == idx_a {
+            cost += i.min(100 - i) as i32;
+            checked[wreath_r[i]] = true;
+            checked[wreath_r[(i + 26) % 100]] = true;
+        }
+    }
+    for i in 0..wreath_l.len() {
+        if checked[wreath_l[i]] {
+            continue;
+        }
+        if state[wreath_l[i]] != idx_b {
+            continue;
+        }
+        let base = i.min(100 - i) as i32;
+        let base2 = (i as i32 - 75).abs();
+        cost += (base.min(base2)).max(25) * 2;
+    }
+    for i in 0..wreath_r.len() {
+        if checked[wreath_r[i]] {
+            continue;
+        }
+        if state[wreath_r[i]] != idx_a {
+            continue;
+        }
+        let base = i.min(100 - i) as i32;
+        let base2 = (i as i32 - 74).abs();
+        cost += (base.min(base2)).max(26) * 2;
+    }
+    cost
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -287,12 +297,12 @@ fn is_candidate_left(
         return true;
     }
     if state[wreath_r[26]] == idx_a {
-        if state[wreath_l[shift]] == idx_a && state[wreath_l[(shift + 25) % 100]] == idx_b {
+        if state[wreath_l[shift]] == idx_a && state[wreath_l[(shift + 25) % 100]] != idx_a {
             return true;
         }
     }
     if state[wreath_r[100 - 26 * 2]] == idx_a {
-        if state[wreath_l[(shift + 25) % 100]] == idx_a && state[wreath_l[shift]] == idx_b {
+        if state[wreath_l[(shift + 25) % 100]] == idx_a && state[wreath_l[shift]] != idx_a {
             return true;
         }
     }
@@ -323,12 +333,12 @@ fn is_candidate_right(
         return true;
     }
     if state[wreath_l[75]] == idx_b {
-        if state[wreath_r[shift]] == idx_b && state[wreath_r[(shift + 100 - 26) % 100]] == idx_a {
+        if state[wreath_r[shift]] == idx_b && state[wreath_r[(shift + 100 - 26) % 100]] != idx_b {
             return true;
         }
     }
     if state[wreath_l[50]] == idx_b {
-        if state[wreath_r[(shift + 100 - 26) % 100]] == idx_b && state[wreath_r[shift]] == idx_a {
+        if state[wreath_r[(shift + 100 - 26) % 100]] == idx_b && state[wreath_r[shift]] != idx_b {
             return true;
         }
     }
@@ -361,7 +371,6 @@ fn beam_search(
     let (action, action_str) = create_action(&allowed_move);
     let init_state = state_to_list(&puzzle.initial_state, &piece_map);
     let sol_state = state_to_list(&puzzle.solution_state, &piece_map);
-    let cost_table = gen_cost_table(&sol_state, &action, piece_num, piece_list.len());
     let mut checked_state = std::collections::HashMap::new();
     checked_state.insert(pack_state(&init_state), 0);
     let mut history = Vec::new();
@@ -488,7 +497,10 @@ fn beam_search(
                             let heuristic = calc_cost(
                                 &nnext_state,
                                 &sol_state,
-                                &cost_table,
+                                &wreath_l,
+                                &wreath_r,
+                                idx_a,
+                                idx_b,
                                 puzzle.num_wildcards,
                             );
                             cands[cand_step + 1].push(Candidate {
@@ -507,7 +519,10 @@ fn beam_search(
                             let heuristic = calc_cost(
                                 &nnext_state,
                                 &sol_state,
-                                &cost_table,
+                                &wreath_l,
+                                &wreath_r,
+                                idx_a,
+                                idx_b,
                                 puzzle.num_wildcards,
                             );
                             cands[cand_step + 1].push(Candidate {
