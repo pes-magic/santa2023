@@ -1,35 +1,7 @@
 // Reference
 
 use csv;
-use rand::prelude::*;
-use serde_json;
 use std::collections::HashMap;
-
-fn gen_piece_map(state: &str) -> (HashMap<&str, usize>, Vec<&str>) {
-    let mut piece_map: HashMap<&str, usize> = HashMap::new();
-    let mut piece_list: Vec<&str> = Vec::new();
-    for f in state.split(";") {
-        if !piece_map.contains_key(f) {
-            piece_map.insert(f, piece_map.len());
-            piece_list.push(f);
-        }
-    }
-    (piece_map, piece_list)
-}
-
-fn state_to_list(state: &str, piece_map: &HashMap<&str, usize>) -> Vec<usize> {
-    state
-        .split(";")
-        .map(|f| piece_map[f])
-        .collect::<Vec<usize>>()
-}
-
-fn list_to_state(list: &Vec<usize>, piece_list: &Vec<&str>) -> String {
-    list.iter()
-        .map(|i| piece_list[*i])
-        .collect::<Vec<&str>>()
-        .join(";")
-}
 
 fn create_action(
     allowed_moves: &HashMap<String, Vec<i16>>,
@@ -56,77 +28,6 @@ fn apply_action(state: &Vec<usize>, action: &Vec<(usize, usize)>) -> Vec<usize> 
         new_state[*i] = state[*j];
     }
     new_state
-}
-
-// Load csv file from the given path.
-fn load_csv(path: &str) -> Vec<Vec<String>> {
-    let mut rdr = csv::Reader::from_path(path).unwrap();
-    let mut records: Vec<Vec<String>> = Vec::new();
-    for result in rdr.records() {
-        let record = result.unwrap();
-        let mut record_vec: Vec<String> = Vec::new();
-        for field in record.iter() {
-            record_vec.push(field.to_string());
-        }
-        records.push(record_vec);
-    }
-    records
-}
-
-fn load_submission() -> Vec<Vec<String>> {
-    load_csv("../submission.csv")
-}
-
-fn load_puzzle_info() -> HashMap<String, HashMap<String, Vec<i16>>> {
-    let mut puzzle_info: HashMap<String, HashMap<String, Vec<i16>>> = HashMap::new();
-    let records = load_csv("../raw_data/puzzle_info.csv");
-    for record in records.iter() {
-        let key = &record[0];
-        // parse the second element of the record as json
-        // Replace single quote in record[1] with double quote
-        let record1 = record[1].replace("'", "\"");
-        let mut json: HashMap<String, Vec<i16>> = serde_json::from_str(&record1).unwrap();
-        let mut json_inv = HashMap::new();
-        for (k, v) in json.iter() {
-            // create inverse permutation of v
-            let mut v_inv = vec![0; v.len()];
-            for (i, j) in v.iter().enumerate() {
-                v_inv[*j as usize] = i as i16;
-            }
-            json_inv.insert(format!("-{}", k), v_inv);
-        }
-        // merge json and json_inv
-        for (k, v) in json_inv.iter() {
-            json.insert(k.to_string(), v.clone());
-        }
-        puzzle_info.insert(key.to_string(), json);
-    }
-    puzzle_info
-}
-
-struct Puzzle {
-    puzzle_type: String,
-    solution_state: String,
-    initial_state: String,
-    num_wildcards: i16,
-}
-
-fn load_puzzle() -> Vec<Puzzle> {
-    let mut puzzles: Vec<Puzzle> = Vec::new();
-    let records = load_csv("../raw_data/puzzles.csv");
-    for record in records.iter() {
-        let puzzle_type = &record[1];
-        let solution_state = &record[2];
-        let initial_state = &record[3];
-        let num_wildcards = &record[4].parse::<i16>().unwrap();
-        puzzles.push(Puzzle {
-            puzzle_type: puzzle_type.to_string(),
-            solution_state: solution_state.to_string(),
-            initial_state: initial_state.to_string(),
-            num_wildcards: *num_wildcards,
-        });
-    }
-    puzzles
 }
 
 fn gen_cost_table(
@@ -171,8 +72,6 @@ struct History {
 struct Node {
     state: Vec<usize>,
     id: usize,
-    parent: Option<usize>,
-    action: Option<usize>,
     cost: i32,
 }
 
@@ -270,7 +169,7 @@ fn pack_state(state: &Vec<usize>) -> (u128, u128, u64) {
 }
 
 fn beam_search(
-    puzzle: &Puzzle,
+    puzzle: &solver::Puzzle,
     allowed_move: &HashMap<String, Vec<i16>>,
     current_best: &String,
 ) -> Option<String> {
@@ -285,10 +184,10 @@ fn beam_search(
     const BEAM_WIDTH: usize = 1000000;
     let current_step = current_best.split(".").collect::<Vec<&str>>().len();
     let piece_num = puzzle.initial_state.split(";").collect::<Vec<&str>>().len();
-    let (piece_map, piece_list) = gen_piece_map(&puzzle.initial_state);
+    let (piece_map, piece_list) = solver::gen_piece_map(&puzzle.initial_state);
     let (action, action_str) = create_action(&allowed_move);
-    let init_state = state_to_list(&puzzle.initial_state, &piece_map);
-    let sol_state = state_to_list(&puzzle.solution_state, &piece_map);
+    let init_state = solver::state_to_list(&puzzle.initial_state, &piece_map);
+    let sol_state = solver::state_to_list(&puzzle.solution_state, &piece_map);
     let cost_table = gen_cost_table(&sol_state, &action, piece_num, piece_list.len());
     let mut checked_state = std::collections::HashSet::new();
     checked_state.insert(pack_state(&init_state));
@@ -302,8 +201,6 @@ fn beam_search(
     nodes.push(Node {
         state: init_state.clone(),
         id: 0,
-        parent: None,
-        action: None,
         cost: calc_cost(&init_state, &sol_state, &cost_table, puzzle.num_wildcards),
     });
     if nodes[0].cost == 0 {
@@ -361,8 +258,6 @@ fn beam_search(
             next_nodes.push(Node {
                 state: new_state,
                 id: history.len(),
-                parent: Some(nodes[c.parent].id),
-                action: Some(c.action),
                 cost: c.cost,
             });
             history.push(History {
@@ -377,9 +272,9 @@ fn beam_search(
 }
 
 fn solve_wreath() {
-    let puzzle_info = load_puzzle_info();
-    let puzzles = load_puzzle();
-    let submission = load_submission();
+    let puzzle_info = solver::load_puzzle_info();
+    let puzzles = solver::load_puzzle();
+    let submission = solver::load_submission();
     let mut submission_df: HashMap<usize, String> = HashMap::new();
     for sub in submission.iter() {
         submission_df.insert(sub[0].parse::<usize>().unwrap(), sub[1].clone());
