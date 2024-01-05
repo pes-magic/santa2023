@@ -107,3 +107,106 @@ pub fn list_to_state(list: &Vec<usize>, piece_list: &Vec<&str>) -> String {
         .collect::<Vec<&str>>()
         .join(";")
 }
+
+pub fn cancel_moves_in_cube(solution: &String) -> String {
+    fn get_side(m: &str) -> &str {
+        if m.starts_with("-") {
+            get_side(&m[1..])
+        } else {
+            &m[0..1]
+        }
+    }
+    fn get_sign(m: &str) -> usize {
+        if m.starts_with("-") {
+            3
+        } else {
+            1
+        }
+    }
+    fn get_index(m: &str) -> usize {
+        if m.starts_with("-") {
+            get_index(&m[1..])
+        } else {
+            m[1..].parse::<usize>().unwrap()
+        }
+    }
+    let mut arr = Vec::new();
+    let moves = solution.split(".").collect::<Vec<&str>>();
+    let mut idx = 0;
+    let mut reduce = 0;
+    let cost = [0, 1, 2, 1];
+    let mut has_clear = false;
+    while idx < moves.len() {
+        let m = moves[idx];
+        let side = get_side(m);
+        let index = get_index(m);
+        let mut cnt = vec![0; 33];
+        cnt[index] = (cnt[get_index(m)] + get_sign(m)) % 4;
+        let mut next_idx = idx + 1;
+        while next_idx < moves.len() {
+            let next_m = moves[next_idx];
+            let next_side = get_side(next_m);
+            if next_side != side {
+                break;
+            }
+            let next_index = get_index(next_m);
+            cnt[next_index] = (cnt[next_index] + get_sign(next_m)) % 4;
+            next_idx += 1;
+        }
+        let sum_cost = cnt
+            .iter()
+            .map(|v| cost[*v])
+            .reduce(|acc, e| acc + e)
+            .unwrap();
+        if sum_cost == 0 {
+            has_clear = true;
+        }
+        if sum_cost < next_idx - idx {
+            for (i, v) in cnt.iter().enumerate() {
+                if *v == 1 {
+                    arr.push(format!("{}{}", side, i));
+                } else if *v == 2 {
+                    arr.push(format!("{}{}", side, i));
+                    arr.push(format!("{}{}", side, i));
+                } else if *v == 3 {
+                    arr.push(format!("-{}{}", side, i));
+                }
+            }
+            reduce += next_idx - idx - sum_cost;
+        } else {
+            for i in idx..next_idx {
+                arr.push(moves[i].to_string());
+            }
+        }
+        idx = next_idx;
+    }
+    if reduce > 0 {
+        let res = arr.join(".").to_string();
+        if has_clear {
+            cancel_moves_in_cube(&res)
+        } else {
+            res
+        }
+    } else {
+        solution.to_string()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_cancel_moves_in_cube() {
+        use super::cancel_moves_in_cube;
+        assert_eq!(cancel_moves_in_cube(&"r0.-r0.r1".to_string()), "r1");
+        assert_eq!(cancel_moves_in_cube(&"r0.r0.r0".to_string()), "-r0");
+        assert_eq!(cancel_moves_in_cube(&"-r0.-r0.-r0".to_string()), "r0");
+        assert_eq!(
+            cancel_moves_in_cube(&"r0.r2.r1.r3.f0.-r0.-r2.-r1.-r3".to_string()),
+            "r0.r2.r1.r3.f0.-r0.-r2.-r1.-r3"
+        );
+        assert_eq!(
+            cancel_moves_in_cube(&"f1.r0.f0.-f0.-r0.f1".to_string()),
+            "f1.f1"
+        );
+    }
+}
