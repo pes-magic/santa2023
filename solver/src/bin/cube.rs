@@ -914,6 +914,8 @@ fn solve_cube_by_rule(
     state = end_state;
     moves.extend(m);
     println!("end green: {}", moves.len());
+    // Edges can be solved in a shorter steps by the solver.
+    /*
     let (end_state, m) = solve_front_edge(
         &state,
         &sol_state,
@@ -950,6 +952,7 @@ fn solve_cube_by_rule(
     state = end_state;
     moves.extend(m);
     println!("end middle edge {}", moves.len());
+    */
     // println!("Solved {}", moves.len());
     // for k in 0..6 {
     //     for i in 0..dim {
@@ -1031,7 +1034,7 @@ fn solve_cube_by_solver(
             }
         }
     }
-    println!("raw_solution {}", sol);
+    // println!("raw_solution {}", sol);
     // join M[m] for m in sol.split(" ") with "."
     let mut mmoves = sol
         .split(" ")
@@ -1112,7 +1115,7 @@ fn solve_cube_by_solver(
             break;
         }
     }
-    println!("solution: {}", mmoves);
+    // println!("solution: {}", mmoves);
     Some(mmoves)
 }
 
@@ -1172,7 +1175,7 @@ fn solve() {
         let moves = &puzzle_info[&row.puzzle_type];
         if let Some(result) = solve_cube(&row, &moves, dim) {
             println!("solved id: {}", id);
-            println!("solution: {}", result);
+            // println!("solution: {}", result);
 
             // validation
             let mut state = row.initial_state.clone();
