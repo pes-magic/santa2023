@@ -1176,7 +1176,7 @@ fn solve() {
         if let Some(result) = solve_cube(&row, &moves, dim) {
             println!("solved id: {}", id);
             // println!("solution: {}", result);
-
+            let result = solver::cancel_moves_in_cube(&result);
             // validation
             let mut state = row.initial_state.clone();
             for m in result.split(".") {
