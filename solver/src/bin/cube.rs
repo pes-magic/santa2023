@@ -867,9 +867,9 @@ fn solve_cube_by_rule(
         &movable_pos,
         dim,
     );
-    println!("end white: {}", moves.len());
     state = end_state;
     moves.extend(m);
+    println!("end white: {}", moves.len());
     let (end_state, m) = solve_yellow_middle(
         &state,
         &sol_state,
@@ -878,9 +878,9 @@ fn solve_cube_by_rule(
         &movable_pos,
         dim,
     );
-    println!("end yellow: {}", moves.len());
     state = end_state;
     moves.extend(m);
+    println!("end yellow: {}", moves.len());
     let (end_state, m) = solve_blue_middle(
         &state,
         &sol_state,
