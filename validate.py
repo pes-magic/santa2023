@@ -79,6 +79,9 @@ def score_puzzle(puzzle_id, puzzle, sub_solution):
     moves = sub_solution.split(".")
     state = puzzle.initial_state
     for m in moves:
+        if len(m) == 0:
+            raise ParticipantVisibleError(f"empty move is not an allowed move for {puzzle_id}.")
+
         power = 1
         if m[0] == "-":
             m = m[1:]
