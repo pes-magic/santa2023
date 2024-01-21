@@ -37,10 +37,22 @@ struct History {
     parent: Option<usize>,
 }
 
+struct VecHistory {
+    actions: Vec<usize>,
+    parent: Option<usize>,
+}
+
 struct Node {
     state: Vec<usize>,
     id: usize,
     cost: i32,
+}
+
+struct VecNode {
+    state: Vec<usize>,
+    id: usize,
+    cost: i32,
+    step: i32,
 }
 
 fn in_range(pos: i32, r: (i32, i32)) -> bool {
@@ -206,6 +218,67 @@ fn calc_cost(state: &Vec<usize>, width: usize, height: usize, piece_type_num: us
     cost
 }
 
+fn calc_cost_for_first_move(
+    state: &Vec<usize>,
+    order_map: &Vec<i32>,
+    width: usize,
+    height: usize,
+    piece_type_num: usize,
+) -> i32 {
+    let mut cost = 0;
+    let half = piece_type_num / 2;
+
+    for h in 0..height {
+        for i in 0..width {
+            if state[h * width + i] / half != h / (height / 2) {
+                cost += 3;
+            }
+        }
+    }
+    let mut rev_cost = vec![0; height];
+    for h in 0..height / 2 {
+        let mut vec_a = Vec::new();
+        let mut vec_b = Vec::new();
+        for w in 0..width {
+            if state[h * width + w] / half == 0 {
+                vec_a.push(order_map[state[h * width + w]]);
+            } else {
+                vec_b.push(width as i32 - 1 - order_map[state[h * width + w]]);
+            }
+        }
+        if !vec_a.is_empty() {
+            rev_cost[h] += rev_sim_all(&vec_a, width);
+        }
+        if !vec_b.is_empty() {
+            rev_cost[h] += 2 * rev_sim_all(&vec_b, width);
+        }
+    }
+    for h in height / 2..height {
+        let mut vec_a = Vec::new();
+        let mut vec_b = Vec::new();
+        for w in 0..width {
+            if state[h * width + w] / half == 1 {
+                vec_a.push(order_map[state[h * width + w]]);
+            } else {
+                vec_b.push(width as i32 - 1 - order_map[state[h * width + w]]);
+            }
+        }
+        if !vec_a.is_empty() {
+            rev_cost[h] += rev_sim_all(&vec_a, width);
+        }
+        if !vec_b.is_empty() {
+            rev_cost[h] += 2 * rev_sim_all(&vec_b, width);
+        }
+    }
+    let mut mx = 0;
+    for i in 0..height / 2 {
+        let add = rev_cost[i].max(rev_cost[height - 1 - i]);
+        cost += 4 * add;
+        mx = mx.max(add);
+    }
+    cost + 8 * mx
+}
+
 struct Candidate {
     parent: usize,
     action: usize,
@@ -213,7 +286,31 @@ struct Candidate {
     rand: u32,
 }
 
+struct VecCandidate {
+    parent: usize,
+    actions: Vec<usize>,
+    cost: i32,
+    step: i32,
+    rand: u32,
+}
+
 fn compare_candidate(a: &Candidate, b: &Candidate) -> std::cmp::Ordering {
+    if a.cost < b.cost {
+        std::cmp::Ordering::Less
+    } else if a.cost > b.cost {
+        std::cmp::Ordering::Greater
+    } else {
+        if a.rand < b.rand {
+            std::cmp::Ordering::Less
+        } else if a.rand > b.rand {
+            std::cmp::Ordering::Greater
+        } else {
+            std::cmp::Ordering::Equal
+        }
+    }
+}
+
+fn compare_vec_candidate(a: &VecCandidate, b: &VecCandidate) -> std::cmp::Ordering {
     if a.cost < b.cost {
         std::cmp::Ordering::Less
     } else if a.cost > b.cost {
@@ -419,6 +516,282 @@ fn beam_search(
     }
     println!("");
 
+    solution
+}
+
+fn first_moves_with_manual(
+    puzzle: &solver::Puzzle,
+    allowed_move: &HashMap<String, Vec<i16>>,
+    current_best: &String,
+    width: usize,
+    height: usize,
+    _id: usize,
+) -> Option<String> {
+    const BEAM_WIDTH: usize = 100;
+    let current_step = current_best.split(".").collect::<Vec<&str>>().len();
+    let (piece_map, piece_list) = solver::gen_piece_map(&puzzle.solution_state);
+    let (action, action_str) = create_action(&allowed_move);
+    let mut action_map = std::collections::HashMap::new();
+    for (idx, key) in action_str.iter().enumerate() {
+        action_map.insert(key.clone(), idx);
+    }
+    let init_state = solver::state_to_list(&puzzle.initial_state, &piece_map);
+    let sol_state = solver::state_to_list(&puzzle.solution_state, &piece_map);
+    let mut order_map = vec![width as i32; piece_list.len()];
+    for h in 0..height {
+        let mut prev = sol_state[h * width];
+        let mut idx = 0;
+        for w in 0..width {
+            if sol_state[h * width + w] != prev {
+                prev = sol_state[h * width + w];
+                idx += 1;
+            }
+            order_map[sol_state[h * width + w]] = idx;
+        }
+    }
+
+    let mut checked_state = std::collections::HashSet::new();
+    let mut history = Vec::new();
+    history.push(VecHistory {
+        actions: Vec::new(),
+        parent: None,
+    });
+    let mut nodes = Vec::new();
+    let mut next_nodes = Vec::new();
+    nodes.push(VecNode {
+        state: init_state.clone(),
+        id: 0,
+        cost: 0,
+        step: 0,
+    });
+    let mut solution: Option<String> = None;
+    let mut current_best = current_step as i32;
+    let mut best_state = init_state.clone();
+    let half = piece_list.len() / 2;
+    for _ in 0..width * height / 2 {
+        if nodes.is_empty() {
+            break;
+        }
+        println!("current_step:  ({})", nodes[0].cost);
+        // println!("best state:");
+        // for h in 0..height {
+        //     for w in 0..width {
+        //         print!("{} ", nodes[0].state[h * width + w]);
+        //     }
+        //     println!("");
+        // }
+
+        // println!(
+        //     "{:?}",
+        //     history[nodes[0].id]
+        //         .actions
+        //         .iter()
+        //         .map(|v| action_str[*v].clone())
+        //         .collect::<Vec<String>>()
+        // );
+        let mut cands = Vec::new();
+        for (idx, node) in nodes.iter().enumerate() {
+            let mut chg_target = height / 2;
+            for h in 0..height / 2 {
+                for w in 0..width {
+                    if node.state[h * width + w] >= half {
+                        chg_target = h;
+                        break;
+                    }
+                }
+                if chg_target != height / 2 {
+                    break;
+                }
+            }
+            if chg_target == height / 2 {
+                if node.cost < current_best {
+                    current_best = node.cost;
+                    let mut sol = Vec::new();
+                    let mut history_id = node.id;
+                    while let Some(n) = history[history_id].parent {
+                        for a in history[history_id].actions.iter().rev() {
+                            sol.push(*a);
+                        }
+                        history_id = n;
+                    }
+                    sol.reverse();
+
+                    solution = Some(
+                        sol.iter()
+                            .map(|v| action_str[*v].clone())
+                            .collect::<Vec<String>>()
+                            .join("."),
+                    );
+                    best_state = node.state.clone();
+                }
+                continue;
+            }
+            let chg_target_rev = height - 1 - chg_target;
+            for mv in 0..=width / 2 {
+                let mut find = false;
+                for dir in 0..2 {
+                    if (mv == 0 || mv == width / 2) && dir == 1 {
+                        continue;
+                    }
+                    let mut new_state = node.state.clone();
+                    let mut actions = Vec::new();
+                    let act_idx = action_map[&if dir == 0 {
+                        format!("r{}", chg_target_rev)
+                    } else {
+                        format!("-r{}", chg_target_rev)
+                    }];
+                    for _ in 0..mv {
+                        actions.push(act_idx);
+                        new_state = apply_action(&new_state, &action[act_idx]);
+                    }
+                    for w in 0..width {
+                        if new_state[chg_target * width + w] / half == 1
+                            && new_state[chg_target_rev * width + (w + width - 1) % width] / half
+                                == 0
+                        {
+                            let mut chg_num = 1;
+                            for i in 2..width / 2 {
+                                if new_state[chg_target * width + (w + i - 1) % width] / half == 1
+                                    && new_state[chg_target_rev * width + (w + width - i) % width]
+                                        / half
+                                        == 0
+                                {
+                                    chg_num = i;
+                                } else {
+                                    break;
+                                }
+                            }
+                            let mut next_state = new_state.clone();
+                            let mut next_actions = actions.clone();
+                            {
+                                let act_idx = action_map[&format!("f{}", w)];
+                                next_actions.push(act_idx);
+                                next_state = apply_action(&next_state, &action[act_idx])
+                            }
+                            for _ in 0..chg_num {
+                                let act_idx = action_map[&format!("-r{}", chg_target_rev)];
+                                next_actions.push(act_idx);
+                                next_state = apply_action(&next_state, &action[act_idx])
+                            }
+                            {
+                                let act_idx = action_map[&format!("f{}", w)];
+                                next_actions.push(act_idx);
+                                next_state = apply_action(&next_state, &action[act_idx])
+                            }
+                            find = true;
+                            if checked_state.contains(&next_state) {
+                                continue;
+                            }
+                            let new_step = node.step + next_actions.len() as i32;
+                            let new_cost = calc_cost_for_first_move(
+                                &next_state,
+                                &order_map,
+                                width,
+                                height,
+                                piece_list.len(),
+                            ) + new_step;
+                            cands.push(VecCandidate {
+                                parent: idx,
+                                actions: next_actions,
+                                cost: new_cost,
+                                step: new_step,
+                                rand: rand::random::<u32>(), // tie breaker
+                            });
+                        }
+
+                        if new_state[chg_target * width + (w + width - 1) % width] / half == 1
+                            && new_state[chg_target_rev * width + w] / half == 0
+                        {
+                            let mut chg_num = 1;
+                            for i in 2..width / 2 {
+                                if new_state[chg_target * width + (w + width - i) % width] / half
+                                    == 1
+                                    && new_state[chg_target_rev * width + (w + i - 1) % width]
+                                        / half
+                                        == 0
+                                {
+                                    chg_num = i;
+                                } else {
+                                    break;
+                                }
+                            }
+                            let mut next_state = new_state.clone();
+                            let mut next_actions = actions.clone();
+                            {
+                                let act_idx = action_map[&format!("f{}", (w + width / 2) % width)];
+                                next_actions.push(act_idx);
+                                next_state = apply_action(&next_state, &action[act_idx])
+                            }
+                            for _ in 0..chg_num {
+                                let act_idx = action_map[&format!("r{}", chg_target_rev)];
+                                next_actions.push(act_idx);
+                                next_state = apply_action(&next_state, &action[act_idx])
+                            }
+                            {
+                                let act_idx = action_map[&format!("f{}", (w + width / 2) % width)];
+                                next_actions.push(act_idx);
+                                next_state = apply_action(&next_state, &action[act_idx])
+                            }
+                            if checked_state.contains(&next_state) {
+                                continue;
+                            }
+                            find = true;
+                            let new_step = node.step + next_actions.len() as i32;
+                            let new_cost = calc_cost_for_first_move(
+                                &next_state,
+                                &order_map,
+                                width,
+                                height,
+                                piece_list.len(),
+                            ) + new_step;
+                            cands.push(VecCandidate {
+                                parent: idx,
+                                actions: next_actions,
+                                cost: new_cost,
+                                step: new_step,
+                                rand: rand::random::<u32>(), // tie breaker
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        cands.sort_by(compare_vec_candidate);
+        for c in cands {
+            if next_nodes.len() >= BEAM_WIDTH {
+                break;
+            }
+            let mut new_state = nodes[c.parent].state.clone();
+            for a in &c.actions {
+                new_state = apply_action(&new_state, &action[*a]);
+            }
+            if checked_state.contains(&new_state) {
+                continue;
+            }
+            checked_state.insert(new_state.clone());
+            next_nodes.push(VecNode {
+                state: new_state,
+                id: history.len(),
+                cost: c.cost,
+                step: c.step,
+            });
+            history.push(VecHistory {
+                actions: c.actions,
+                parent: Some(nodes[c.parent].id),
+            });
+        }
+        std::mem::swap(&mut nodes, &mut next_nodes);
+        next_nodes.clear();
+    }
+    println!("{:?}", best_state);
+    for h in 0..height {
+        let mut vec = Vec::new();
+        for w in 0..width {
+            vec.push(order_map[best_state[h * width + w]]);
+        }
+        print!("{} ", rev_sim_all(&vec, width));
+    }
+    println!("");
     solution
 }
 
@@ -709,7 +1082,9 @@ fn solve_globe_impl_even(
     height: usize,
     id: usize,
 ) -> Option<String> {
-    if let Some(first_move) = beam_search(puzzle, allowed_move, current_best, width, height, id) {
+    if let Some(first_move) =
+        first_moves_with_manual(puzzle, allowed_move, current_best, width, height, id)
+    {
         if let Some(second_move) =
             resolve_inversion_greedy(puzzle, allowed_move, &first_move, width, height)
         {
@@ -1030,19 +1405,12 @@ fn attemp4() {
         action_map.insert(action_str[idx].clone(), action[idx].clone());
     }
 
-    let mut state = info["f0"]
+    let mut state = info["f2"]
         .iter()
         .map(|v| *v as usize)
         .collect::<Vec<usize>>();
     state = apply_action(&state, &action_map["-r1"]);
-    state = apply_action(&state, &action_map["f0"]);
-    state = apply_action(&state, &action_map["r1"]);
-    state = apply_action(&state, &action_map["r1"]);
-    state = apply_action(&state, &action_map["f7"]);
-    state = apply_action(&state, &action_map["-r1"]);
-    state = apply_action(&state, &action_map["f7"]);
-    // state = apply_action(&state, &action_map["-r3"]);
-    // state = apply_action(&state, &action_map["-r0"]);
+    state = apply_action(&state, &action_map["f2"]);
     println!("{:?}", state);
 }
 
