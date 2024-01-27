@@ -1095,9 +1095,6 @@ fn solve_cube(
     if dim <= 2 {
         return None;
     }
-    if dim <= 18 {
-        return None;
-    }
     if dim % 2 == 0 && checker_cube {
         return None;
     }
