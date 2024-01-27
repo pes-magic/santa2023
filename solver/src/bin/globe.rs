@@ -1,5 +1,6 @@
 // Reference
 
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 fn create_action(
@@ -527,7 +528,7 @@ fn first_moves_with_manual(
     height: usize,
     _id: usize,
 ) -> Option<String> {
-    const BEAM_WIDTH: usize = 100;
+    const BEAM_WIDTH: usize = 150;
     let current_step = current_best.split(".").collect::<Vec<&str>>().len();
     let (piece_map, piece_list) = solver::gen_piece_map(&puzzle.solution_state);
     let (action, action_str) = create_action(&allowed_move);
@@ -1240,8 +1241,72 @@ fn solve_globe() {
     for (k, v) in puzzle_info.iter() {
         allowed_moves.insert(k.to_string(), v.clone());
     }
+    let ans = (0..puzzles.len())
+        .into_par_iter()
+        .map(|k| {
+            let row = &puzzles[k];
+            if !row.puzzle_type.starts_with("globe") {
+                return None;
+            }
+
+            if k < 388 {
+                return None;
+            }
+
+            let width = row
+                .puzzle_type
+                .split("/")
+                .collect::<Vec<&str>>()
+                .last()
+                .unwrap()
+                .parse::<usize>()
+                .unwrap()
+                * 2;
+            let height = (row.puzzle_type.as_bytes()[6] as usize - '0' as usize) + 1;
+
+            let moves = &puzzle_info[&row.puzzle_type];
+            if let Some(result) =
+                solve_globe_impl(&row, &moves, &submission_df[&k], width, height, k)
+            {
+                let mmoves_length = result.split(".").collect::<Vec<&str>>().len();
+                let best_moves_length = submission_df[&k].split(".").collect::<Vec<&str>>().len();
+                if mmoves_length < best_moves_length {
+                    println!("solved id: {}", k);
+                    println!(
+                        "{} find: {}, best: {}",
+                        row.puzzle_type, mmoves_length, best_moves_length
+                    );
+                    println!("solution: {}", result);
+                }
+                Some(result)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<Option<String>>>();
+
+    for (id, row) in ans.iter().enumerate() {
+        if let Some(result) = row {
+            let mmoves_length = result.split(".").collect::<Vec<&str>>().len();
+            let best_moves_length = submission_df[&id].split(".").collect::<Vec<&str>>().len();
+            if mmoves_length < best_moves_length {
+                println!("solved id: {}", id);
+                println!("find: {}, best: {}", mmoves_length, best_moves_length);
+                println!("solution: {}", result);
+                submission_df.insert(id, result.to_string());
+            }
+        } else {
+            println!("failed id: {}", id);
+        }
+    }
+
+    /*
     for (id, row) in puzzles.iter().enumerate() {
         if !row.puzzle_type.starts_with("globe") {
+            continue;
+        }
+
+        if id < 388 {
             continue;
         }
 
@@ -1274,6 +1339,7 @@ fn solve_globe() {
             println!("failed id: {}", id);
         }
     }
+    */
     let mut wtr = csv::Writer::from_path("../submission_latest.csv").unwrap();
     // ヘッダーを書き出す
     wtr.write_record(&["id", "moves"]).unwrap();

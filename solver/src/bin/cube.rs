@@ -26,14 +26,6 @@ fn create_actions(
     actions
 }
 
-fn apply_action(state: &Vec<usize>, action: &Vec<(usize, usize)>) -> Vec<usize> {
-    let mut new_state = state.clone();
-    for (i, j) in action.iter() {
-        new_state[*i] = state[*j];
-    }
-    new_state
-}
-
 fn index_to_p3(idx: usize, dim: usize) -> P3 {
     let face = idx / dim.pow(2);
     let row = idx % dim.pow(2) / dim;
@@ -143,7 +135,7 @@ fn solve_while_middle(
                 let m = cube_moves::solve_white_middle_impl(&cur_p3, &target_p3, dim);
                 for act in m.iter() {
                     let action = &actions[act];
-                    state = apply_action(&state, action);
+                    state = cube_moves::apply_action(&state, action);
                     cur_index = allowed_moves_inv[act][cur_index] as usize;
                     moves.push(act.clone());
                 }
@@ -195,7 +187,7 @@ fn solve_yellow_middle(
                 let m = cube_moves::solve_yellow_middle_impl(&cur_p3, &target_p3, dim);
                 for act in m.iter() {
                     let action = &actions[act];
-                    state = apply_action(&state, action);
+                    state = cube_moves::apply_action(&state, action);
                     cur_index = allowed_moves_inv[act][cur_index] as usize;
                     moves.push(act.clone());
                 }
@@ -250,7 +242,7 @@ fn solve_blue_middle(
                 let m = cube_moves::solve_blue_middle_impl(&cur_p3, &target_p3, dim);
                 for act in m.iter() {
                     let action = &actions[act];
-                    state = apply_action(&state, action);
+                    state = cube_moves::apply_action(&state, action);
                     cur_index = allowed_moves_inv[act][cur_index] as usize;
                     moves.push(act.clone());
                 }
@@ -303,62 +295,7 @@ fn solve_orange_middle(
             let m = cube_moves::solve_orange_middle_impl(&cur_p3, &target_p3, dim);
             for act in m.iter() {
                 let action = &actions[act];
-                state = apply_action(&state, action);
-                cur_index = allowed_moves_inv[act][cur_index] as usize;
-                moves.push(act.clone());
-            }
-        }
-    }
-    (state, moves)
-}
-
-fn solve_green_middle(
-    cur_state: &Vec<usize>,
-    sol_state: &Vec<usize>,
-    allowed_moves_inv: &HashMap<String, &Vec<i16>>,
-    actions: &HashMap<String, Vec<(usize, usize)>>,
-    movable_pos: &Vec<Vec<usize>>,
-    dim: usize,
-) -> (Vec<usize>, Vec<String>) {
-    let mut state = cur_state.clone();
-    let mut moves = Vec::new();
-    let mut checked = vec![false; dim * dim];
-
-    for (i, j) in middle_check_order_green(dim) {
-        let target_index = (5 * dim + i) * dim + j;
-        checked[i * dim + j] = true;
-        if state[target_index] == sol_state[target_index] {
-            continue;
-        }
-        let mut cur_index = 0;
-        for k in movable_pos[target_index].iter() {
-            if *k < 2 * dim * dim {
-                continue;
-            }
-            if 3 * dim * dim <= *k && *k < 5 * dim * dim {
-                continue;
-            }
-            if 5 * dim * dim <= *k && checked[*k - 5 * dim * dim] {
-                continue;
-            }
-            if state[*k] == sol_state[target_index] {
-                cur_index = *k;
-                break;
-            }
-        }
-        if cur_index == 0 {
-            panic!("source index not found");
-        }
-        let target_p3 = index_to_p3(target_index, dim);
-        while cur_index != target_index {
-            let cur_p3 = index_to_p3(cur_index, dim);
-            let m = cube_moves::solve_green_middle_impl(&cur_p3, &target_p3, dim);
-            if m.is_empty() {
-                break;
-            }
-            for act in m.iter() {
-                let action = &actions[act];
-                state = apply_action(&state, action);
+                state = cube_moves::apply_action(&state, action);
                 cur_index = allowed_moves_inv[act][cur_index] as usize;
                 moves.push(act.clone());
             }
@@ -470,7 +407,7 @@ fn solve_front_edge(
             }
             for act in m.iter() {
                 let action = &actions[act];
-                state = apply_action(&state, action);
+                state = cube_moves::apply_action(&state, action);
                 cur_index = allowed_moves_inv[act][cur_index] as usize;
                 moves.push(act.clone());
             }
@@ -537,7 +474,7 @@ fn solve_back_edge(
             }
             for act in m.iter() {
                 let action = &actions[act];
-                state = apply_action(&state, action);
+                state = cube_moves::apply_action(&state, action);
                 cur_index = allowed_moves_inv[act][cur_index] as usize;
                 moves.push(act.clone());
             }
@@ -594,7 +531,7 @@ fn solve_middle_edge(
             }
             for act in m.iter() {
                 let action = &actions[act];
-                state = apply_action(&state, action);
+                state = cube_moves::apply_action(&state, action);
                 cur_index = allowed_moves_inv[act][cur_index] as usize;
                 moves.push(act.clone());
             }
@@ -869,7 +806,14 @@ fn solve_cube_by_rule(
     );
     state = end_state;
     moves.extend(m);
-    println!("end white: {}", moves.len());
+
+    println!(
+        "end white: {}",
+        solver::cancel_moves_in_cube(&moves.join("."))
+            .split(".")
+            .collect::<Vec<&str>>()
+            .len()
+    );
     let (end_state, m) = solve_yellow_middle(
         &state,
         &sol_state,
@@ -880,7 +824,13 @@ fn solve_cube_by_rule(
     );
     state = end_state;
     moves.extend(m);
-    println!("end yellow: {}", moves.len());
+    println!(
+        "end yellow: {}",
+        solver::cancel_moves_in_cube(&moves.join("."))
+            .split(".")
+            .collect::<Vec<&str>>()
+            .len()
+    );
     let (end_state, m) = solve_blue_middle(
         &state,
         &sol_state,
@@ -891,7 +841,13 @@ fn solve_cube_by_rule(
     );
     state = end_state;
     moves.extend(m);
-    println!("end blue: {}", moves.len());
+    println!(
+        "end blue: {}",
+        solver::cancel_moves_in_cube(&moves.join("."))
+            .split(".")
+            .collect::<Vec<&str>>()
+            .len()
+    );
     let (end_state, m) = solve_orange_middle(
         &state,
         &sol_state,
@@ -902,18 +858,23 @@ fn solve_cube_by_rule(
     );
     state = end_state;
     moves.extend(m);
-    println!("end orange: {}", moves.len());
-    let (end_state, m) = solve_green_middle(
-        &state,
-        &sol_state,
-        &allowed_moves_inv,
-        &actions,
-        &movable_pos,
-        dim,
+    println!(
+        "end orange: {}",
+        solver::cancel_moves_in_cube(&moves.join("."))
+            .split(".")
+            .collect::<Vec<&str>>()
+            .len()
     );
+    let (end_state, m) = cube_moves::solve_green_middle_impl(&state, &sol_state, &actions, dim);
     state = end_state;
     moves.extend(m);
-    println!("end green: {}", moves.len());
+    println!(
+        "end green: {}",
+        solver::cancel_moves_in_cube(&moves.join("."))
+            .split(".")
+            .collect::<Vec<&str>>()
+            .len()
+    );
     // Edges can be solved in a shorter steps by the solver.
     /*
     let (end_state, m) = solve_front_edge(
@@ -1132,6 +1093,9 @@ fn solve_cube(
     let distinct_cube = sol_state.starts_with("N0");
     // Already have optimal solution for N=2
     if dim <= 2 {
+        return None;
+    }
+    if dim <= 18 {
         return None;
     }
     if dim % 2 == 0 && checker_cube {

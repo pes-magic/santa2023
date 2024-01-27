@@ -1,6 +1,10 @@
 // Reference
 // * https://github.com/merpig/RubiksProgram
+// * https://cube.uubio.com
 
+use itertools::Itertools;
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -887,389 +891,21 @@ pub fn solve_orange_middle_impl(current: &P3, solved: &P3, dim: usize) -> Vec<St
     res
 }
 
-pub fn solve_green_middle_impl(current: &P3, solved: &P3, dim: usize) -> Vec<String> {
-    let current_side = p3_to_side(current, dim);
-    let middle = dim / 2;
-    let max = middle + 1;
-    let min = middle - 1;
-    let mut res: Vec<String> = Vec::new();
-
-    // Temp 4x4 solver
-    if dim % 2 == 0 {
-        if current_side == 'D' {
-            if solved.x == middle - 1 && solved.y == middle - 1 && solved.z == 0 {
-                res.push("d0".to_string());
-            } else if solved.x == middle && solved.y == middle - 1 && solved.z == 0 {
-                res.push(format!("-f{}", current.y));
-                res.push("r0".to_string());
-                res.push("r0".to_string());
-                res.push(format!("f{}", current.y));
-            } else if solved.x == middle - 1 && solved.y == middle && solved.z == 0 {
-                res.push(format!("-f{}", middle));
-                res.push("-r0".to_string());
-                res.push(format!("f{}", middle));
-            } else {
-                if solved.x == solved.y
-                    || solved.x == (dim - 1) - solved.y
-                    || (dim - 1) - solved.x == (dim - 1) - solved.y
-                    || (dim - 1) - solved.x == solved.y
-                {
-                    if solved.y < middle && solved.x < middle {
-                        res.push("d0".to_string());
-                    } else if solved.x > middle && solved.y < middle {
-                        res.push(format!("-f{}", current.y));
-                        res.push("r0".to_string());
-                        res.push("r0".to_string());
-                        res.push(format!("f{}", current.y));
-                    } else if solved.x < middle && solved.y > middle {
-                        res.push(format!("-f{}", current.y));
-                        res.push("r0".to_string());
-                        res.push(format!("f{}", current.y));
-                    }
-                } else {
-                    res.push("-r0".to_string());
-                    res.push("-d0".to_string());
-                    res.push(format!("f{}", dim - 1 - current.x));
-                    res.push("d0".to_string());
-                    res.push(format!("f{}", current.y));
-                    res.push("-d0".to_string());
-                    res.push(format!("-f{}", dim - 1 - current.x));
-                    res.push("d0".to_string());
-                    res.push(format!("-f{}", current.y));
-                    res.push("r0".to_string());
-                }
-            }
-        }
-
-        if current_side == 'R' {
-            if solved.x == middle - 1 && solved.y == middle - 1 && solved.z == 0 {
-                res.push(format!("f{}", current.y));
-                res.push("d0".to_string());
-                res.push("d0".to_string());
-                res.push(format!("-f{}", current.y));
-            } else if solved.x == middle && solved.y == middle - 1 && solved.z == 0 {
-                if current.y == middle && current.z == middle {
-                    res.push("d0".to_string());
-                    res.push(format!("f{}", middle));
-                    res.push("-d0".to_string());
-                    res.push(format!("-f{}", middle));
-                } else {
-                    res.push("r0".to_string());
-                }
-            } else if solved.x == middle - 1 && solved.y == middle && solved.z == 0 {
-                if current.y == middle && current.z == middle - 1 {
-                    res.push("r0".to_string());
-                    res.push(format!("-f{}", middle));
-                    res.push("-r0".to_string());
-                    res.push(format!("f{}", middle));
-                } else {
-                    res.push("r0".to_string());
-                }
-            } else if solved.x == middle && solved.y == middle && solved.z == 0 {
-                if current.y == middle - 1 && current.z == middle {
-                    res.push(format!("-f{}", middle));
-                    res.push("-r0".to_string());
-                    res.push(format!("f{}", middle));
-                    res.push("r0".to_string());
-                    res.push(format!("-f{}", middle));
-                    res.push("r0".to_string());
-                    res.push(format!("f{}", middle));
-                } else {
-                    res.push("r0".to_string());
-                }
-            } else {
-                if solved.x == solved.y
-                    || solved.x == (dim - 1) - solved.y
-                    || (dim - 1) - solved.x == (dim - 1) - solved.y
-                    || (dim - 1) - solved.x == solved.y
-                {
-                    if current.y < middle && current.z < middle {
-                        if solved.x < middle && solved.y < middle {
-                            res.push(format!("f{}", current.y));
-                            res.push("-d0".to_string());
-                            res.push(format!("-f{}", current.y));
-                            res.push("d0".to_string());
-                        } else if solved.x > middle && solved.y < middle {
-                            res.push("-d0".to_string());
-                            res.push(format!("f{}", current.y));
-                            res.push("-d0".to_string());
-                            res.push(format!("-f{}", current.y));
-                            res.push("d0".to_string());
-                            res.push("d0".to_string());
-                        } else if solved.x < middle && solved.y > middle {
-                            res.push(format!("-f{}", dim - 1 - current.y));
-                            res.push("-r0".to_string());
-                            res.push(format!("f{}", dim - 1 - current.y));
-                        } else if solved.x > middle && solved.y > middle {
-                            res.push("-r0".to_string());
-                            res.push(format!("f{}", dim - 1 - current.y));
-                            res.push("-d0".to_string());
-                            res.push(format!("-f{}", dim - 1 - current.y));
-                            res.push("r0".to_string());
-                            res.push("r0".to_string());
-                            res.push("d0".to_string());
-                            res.push(format!("-f{}", dim - 1 - current.y));
-                            res.push("r0".to_string());
-                            res.push("r0".to_string());
-                            res.push(format!("f{}", dim - 1 - current.y));
-                        }
-                    } else {
-                        res.push("r0".to_string());
-                    }
-                } else {
-                    if current.y == solved.y && current.z == solved.x {
-                        res.push("-r0".to_string());
-                        res.push("-d0".to_string());
-                        res.push(format!("f{}", dim - 1 - current.z));
-                        res.push("d0".to_string());
-                        res.push(format!("f{}", current.y));
-                        res.push("-d0".to_string());
-                        res.push(format!("-f{}", dim - 1 - current.z));
-                        res.push("d0".to_string());
-                        res.push(format!("-f{}", current.y));
-                        res.push("r0".to_string());
-                    } else {
-                        res.push("r0".to_string());
-                    }
-                }
-            }
-        }
-    } else if dim % 2 == 1 {
-        match current_side {
-            'D' => {
-                if solved.x >= min && solved.x <= max && solved.y >= min && solved.y <= max {
-                    if solved.y == min {
-                        if solved.x == min {
-                            res.push("d0".to_string());
-                        } else if solved.x == middle {
-                            if current.x < middle {
-                                res.push(format!("f{}", current.y));
-                                res.push("-d0".to_string());
-                                res.push(format!("-f{}", current.y));
-                                res.push("d0".to_string());
-                            } else if current.x > middle {
-                                res.push(format!("f{}", current.y));
-                                res.push("d0".to_string());
-                                res.push(format!("-f{}", current.y));
-                                res.push("-d0".to_string());
-                            } else {
-                                res.push(format!("-f{}", current.y));
-                                res.push("-r0".to_string());
-                                res.push(format!("f{}", current.y));
-                            }
-                        } else {
-                            res.push(format!("f{}", current.y));
-                            res.push("d0".to_string());
-                            res.push(format!("-f{}", current.y));
-                            res.push("-d0".to_string());
-                        }
-                    } else if solved.y == middle {
-                        if solved.x == min {
-                            if current.y == middle {
-                                res.push(format!("f{}", min));
-                                res.push("d0".to_string());
-                                res.push("d0".to_string());
-                                res.push(format!("-f{}", min));
-                            } else {
-                                res.push(format!("f{}", min));
-                                res.push("d0".to_string());
-                                res.push(format!("-f{}", min));
-                            }
-                        } else {
-                            res.push(format!("-f{}", current.y));
-                            res.push("r0".to_string());
-                            res.push(format!("f{}", current.y));
-                        }
-                    } else {
-                        if solved.x == min {
-                            res.push(format!("-f{}", current.y));
-                            res.push("r0".to_string());
-                            res.push(format!("f{}", current.y));
-                        }
-                    }
-                } else {
-                    if solved.x == solved.y
-                        || solved.x == (dim - 1) - solved.y
-                        || (dim - 1) - solved.x == (dim - 1) - solved.y
-                        || (dim - 1) - solved.x == solved.y
-                    {
-                        if solved.y < middle && solved.x < middle {
-                            res.push("d0".to_string());
-                        } else if solved.x > middle && solved.y < middle {
-                            res.push(format!("-f{}", current.y));
-                            res.push("r0".to_string());
-                            res.push(format!("f{}", current.y));
-                        } else if solved.x < middle && solved.y > middle {
-                            res.push(format!("-f{}", current.y));
-                            res.push("r0".to_string());
-                            res.push(format!("f{}", current.y));
-                        }
-                    } else {
-                        res.push("-r0".to_string());
-                        res.push("-d0".to_string());
-                        res.push(format!("f{}", dim - 1 - current.x));
-                        res.push("d0".to_string());
-                        res.push(format!("f{}", current.y));
-                        res.push("-d0".to_string());
-                        res.push(format!("-f{}", dim - 1 - current.x));
-                        res.push("d0".to_string());
-                        res.push(format!("-f{}", current.y));
-                        res.push("r0".to_string());
-                    }
-                }
-            }
-            'R' => {
-                if solved.x >= middle - 1
-                    && solved.x <= middle + 1
-                    && solved.y >= middle - 1
-                    && solved.y <= middle + 1
-                {
-                    if solved.y == min {
-                        if solved.x == min {
-                            res.push(format!("f{}", current.y));
-                            res.push("d0".to_string());
-                            res.push("d0".to_string());
-                            res.push(format!("-f{}", current.y));
-                        } else if solved.x == middle {
-                            if current.z == max {
-                                res.push("d0".to_string());
-                                res.push(format!("f{}", current.y));
-                                res.push("-d0".to_string());
-                                res.push(format!("-f{}", current.y));
-                            } else {
-                                res.push("r0".to_string());
-                            }
-                        } else {
-                            if current.y == max && current.z == max {
-                                res.push("d0".to_string());
-                                res.push(format!("f{}", current.y));
-                                res.push("-d0".to_string());
-                                res.push(format!("-f{}", current.y));
-                            } else {
-                                res.push("r0".to_string());
-                            }
-                        }
-                    } else if solved.y == middle {
-                        if solved.x == min {
-                            if current.y == max {
-                                res.push(format!("-f{}", middle));
-                                res.push("r0".to_string());
-                                res.push(format!("f{}", middle));
-                            } else {
-                                res.push("-r0".to_string());
-                            }
-                        } else {
-                            if current.z == min {
-                                res.push(format!("f{}", min));
-                                res.push("-d0".to_string());
-                                res.push(format!("-f{}", min));
-                                res.push("r0".to_string());
-                                res.push(format!("f{}", min));
-                                res.push("d0".to_string());
-                                res.push(format!("-f{}", min));
-                            } else {
-                                res.push("-r0".to_string());
-                            }
-                        }
-                    } else {
-                        if solved.x == min {
-                            if current.z == min && current.y == min {
-                                res.push(format!("-f{}", max));
-                                res.push("-r0".to_string());
-                                res.push(format!("f{}", max));
-                            } else {
-                                res.push("r0".to_string());
-                            }
-                        } else if solved.x == middle {
-                            if current.y == max {
-                                res.push(format!("-f{}", current.y));
-                                res.push("-r0".to_string());
-                                res.push(format!("f{}", current.y));
-                                res.push("-r0".to_string());
-                                res.push(format!("-f{}", current.y));
-                                res.push("r0".to_string());
-                                res.push(format!("f{}", current.y));
-                            } else {
-                                res.push("r0".to_string());
-                            }
-                        } else {
-                            if current.y == max && current.z == min {
-                                res.push(format!("f{}", current.y));
-                                res.push("-d0".to_string());
-                                res.push(format!("-f{}", current.y));
-                                res.push("-d0".to_string());
-                                res.push(format!("f{}", current.y));
-                                res.push("d0".to_string());
-                                res.push("d0".to_string());
-                                res.push(format!("-f{}", current.y));
-                            } else {
-                                res.push("r0".to_string());
-                            }
-                        }
-                    }
-                } else {
-                    if solved.x == solved.y
-                        || solved.x == (dim - 1) - solved.y
-                        || (dim - 1) - solved.x == (dim - 1) - solved.y
-                        || (dim - 1) - solved.x == solved.y
-                    {
-                        if current.y < middle && current.z < middle {
-                            if solved.x < middle && solved.y < middle {
-                                res.push(format!("f{}", current.y));
-                                res.push("-d0".to_string());
-                                res.push(format!("-f{}", current.y));
-                                res.push("d0".to_string());
-                            } else if solved.x > middle && solved.y < middle {
-                                res.push("-d0".to_string());
-                                res.push(format!("f{}", current.y));
-                                res.push("-d0".to_string());
-                                res.push(format!("-f{}", current.y));
-                                res.push("d0".to_string());
-                                res.push("d0".to_string());
-                            } else if solved.x < middle && solved.y > middle {
-                                res.push(format!("-f{}", dim - 1 - current.y));
-                                res.push("-r0".to_string());
-                                res.push(format!("f{}", dim - 1 - current.y));
-                            } else if solved.x > middle && solved.y > middle {
-                                res.push("-r0".to_string());
-                                res.push(format!("f{}", dim - 1 - current.y));
-                                res.push("-d0".to_string());
-                                res.push(format!("-f{}", dim - 1 - current.y));
-                                res.push("r0".to_string());
-                                res.push("r0".to_string());
-                                res.push("d0".to_string());
-                                res.push(format!("-f{}", dim - 1 - current.y));
-                                res.push("r0".to_string());
-                                res.push("r0".to_string());
-                                res.push(format!("f{}", dim - 1 - current.y));
-                            }
-                        } else {
-                            res.push("r0".to_string());
-                        }
-                    } else {
-                        if current.y == solved.y && current.z == solved.x {
-                            res.push("-r0".to_string());
-                            res.push("-d0".to_string());
-                            res.push(format!("f{}", dim - 1 - current.z));
-                            res.push("d0".to_string());
-                            res.push(format!("f{}", current.y));
-                            res.push("-d0".to_string());
-                            res.push(format!("-f{}", dim - 1 - current.z));
-                            res.push("d0".to_string());
-                            res.push(format!("-f{}", current.y));
-                            res.push("r0".to_string());
-                        } else {
-                            res.push("r0".to_string());
-                        }
-                    }
-                }
-            }
-            _ => {
-                panic!("Woops something broke. Only red and green should be unsolved.");
-            }
-        }
-    }
-    res
+pub fn solve_green_middle_impl(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    actions: &HashMap<String, Vec<(usize, usize)>>,
+    dim: usize,
+) -> (Vec<usize>, Vec<String>) {
+    let mut state = cur_state.clone();
+    let mut moves = Vec::new();
+    let (end_state, m) = solve_green_middle_corner_easy(&state, sol_state, actions, dim);
+    state = end_state;
+    moves.extend(m);
+    let (end_state, m) = solve_green_middle_edge_easy(&state, sol_state, actions, dim);
+    state = end_state;
+    moves.extend(m);
+    (state, moves)
 }
 
 fn extract_from_front(current: &P3, max_coord: usize, min_coord: usize, dim: usize) -> Vec<String> {
@@ -2430,4 +2066,409 @@ pub fn solve_middle_edge_segments_impl(current: &P3, solved: &P3, dim: usize) ->
             solve_last_edge(current.y, dim)
         }
     }
+}
+
+pub fn apply_action(state: &Vec<usize>, action: &Vec<(usize, usize)>) -> Vec<usize> {
+    let mut new_state = state.clone();
+    for (i, j) in action.iter() {
+        new_state[*i] = state[*j];
+    }
+    new_state
+}
+
+fn get_perm_map() -> (Vec<Vec<usize>>, HashMap<Vec<usize>, usize>) {
+    let mut perm_map: HashMap<Vec<usize>, usize> = HashMap::new();
+    let mut perm_list: Vec<Vec<usize>> = Vec::new();
+    for p in (0..8).permutations(8) {
+        perm_map.insert(p.clone(), perm_list.len());
+        perm_list.push(p);
+    }
+    (perm_list, perm_map)
+}
+
+fn apply_perm(state: &Vec<usize>, perm: &Vec<usize>) -> Vec<usize> {
+    perm.iter().map(|i| state[*i]).collect::<Vec<usize>>()
+}
+
+fn calc_permutation_idx_edge_easy(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    perm_map: &HashMap<Vec<usize>, usize>,
+    dim: usize,
+    pos_y: usize,
+    pos_x: usize,
+) -> usize {
+    let target_idx = [
+        2 * dim * dim + pos_y * dim + pos_x,
+        2 * dim * dim + (dim - 1 - pos_x) * dim + pos_y,
+        2 * dim * dim + pos_x * dim + (dim - 1 - pos_y),
+        2 * dim * dim + (dim - 1 - pos_y) * dim + (dim - 1 - pos_x),
+        5 * dim * dim + pos_x * dim + (dim - 1 - pos_y),
+        5 * dim * dim + pos_y * dim + pos_x,
+        5 * dim * dim + (dim - 1 - pos_y) * dim + (dim - 1 - pos_x),
+        5 * dim * dim + (dim - 1 - pos_x) * dim + pos_y,
+    ];
+    let mut idx2 = 0;
+    let mut idx5 = 4;
+    let mut p = Vec::new();
+    for i in 0..8 {
+        if cur_state[target_idx[i]] == sol_state[target_idx[0]] {
+            p.push(idx2);
+            idx2 += 1;
+        } else {
+            p.push(idx5);
+            idx5 += 1;
+        }
+    }
+    perm_map[&p]
+}
+
+fn bfs2() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
+    let (perm_list, perm_map) = get_perm_map();
+    let mut priority_qu = BinaryHeap::new();
+    let actions = [
+        (Vec::from([1, 3, 0, 2, 4, 5, 6, 7]), 1), // rotate top
+        (Vec::from([2, 0, 3, 1, 4, 5, 6, 7]), 1), // rotate top (rev)
+        (Vec::from([0, 1, 2, 3, 5, 7, 4, 6]), 1), // rotate btm
+        (Vec::from([0, 1, 2, 3, 6, 4, 7, 5]), 1), // ratate btm (rev)
+        (Vec::from([0, 1, 6, 3, 4, 5, 7, 2]), 8), // rotate btm_right
+        (Vec::from([0, 1, 7, 3, 4, 5, 2, 6]), 8), // rotate btm_right (inv)
+        (Vec::from([0, 5, 2, 3, 4, 7, 6, 1]), 8), // rotate btm_left
+        (Vec::from([0, 7, 2, 3, 4, 1, 6, 5]), 8), // rotate btm_left (rev)
+        (Vec::from([6, 1, 0, 3, 4, 5, 2, 7]), 8), // rotate top_right
+        (Vec::from([2, 1, 6, 3, 4, 5, 0, 7]), 8), // rotate top_right
+        (Vec::from([5, 0, 2, 3, 4, 1, 6, 7]), 8), // rotate top_left
+        (Vec::from([1, 5, 2, 3, 4, 0, 6, 7]), 8), // rotate top_left
+    ];
+    let mut prev_state: Vec<Option<usize>> = vec![None; perm_list.len()];
+    let mut prev_action: Vec<Option<usize>> = vec![None; perm_list.len()];
+    let mut cost: Vec<i32> = vec![std::i32::MAX; 16 * perm_list.len()];
+    for v0 in (0..4).permutations(4) {
+        for v1 in (4..8).permutations(4) {
+            let mut start = Vec::new();
+            start.extend(v0.iter());
+            start.extend(v1.iter());
+            priority_qu.push(Reverse((0, start.clone())));
+            let idx = perm_map[&start];
+            cost[idx] = 0;
+        }
+    }
+
+    while let Some(Reverse((cur_cost, state))) = priority_qu.pop() {
+        let idx = perm_map[&state];
+        let c = cost[idx];
+        if cur_cost > c {
+            continue;
+        }
+        for (action_idx, (perm, action_cost)) in actions.iter().enumerate() {
+            let next_state = apply_perm(&state, &perm);
+            let next_idx = perm_map[&next_state];
+            if action_cost + c < cost[next_idx] {
+                cost[next_idx] = action_cost + c;
+                prev_state[next_idx] = Some(idx);
+                prev_action[next_idx] = Some(action_idx);
+                priority_qu.push(Reverse((action_cost + c, next_state)));
+            }
+        }
+    }
+    // let mut max_cost = 0;
+    // let mut max_idx = 0;
+    // let mut reachable = 0;
+    // let mut printed = false;
+    // for (idx, c) in cost.iter().enumerate() {
+    //     if *c == std::i32::MAX {
+    //         continue;
+    //     }
+    //     reachable += 1;
+    //     if *c > max_cost {
+    //         max_cost = *c;
+    //         max_idx = idx;
+    //     }
+    // }
+    // println!("reachable: {}", reachable);
+    // println!(
+    //     "max_cost: {} {:?} {} {}",
+    //     max_cost,
+    //     perm_list[max_idx / 16],
+    //     max_idx / 4 % 4,
+    //     max_idx % 4
+    // );
+    (prev_state, prev_action)
+}
+
+fn solve_green_middle_edge_easy(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    actions: &HashMap<String, Vec<(usize, usize)>>,
+    dim: usize,
+) -> (Vec<usize>, Vec<String>) {
+    let (_, perm_map) = get_perm_map();
+    let (prev_state, prev_action) = bfs2();
+    let mut state = cur_state.clone();
+    let mut moves_str = Vec::new();
+    for y in 1..dim / 2 {
+        for x in y..dim - 1 - y {
+            let rev_x = dim - 1 - x;
+            let rev_y = dim - 1 - y;
+            let perm_idx = calc_permutation_idx_edge_easy(&state, sol_state, &perm_map, dim, y, x);
+
+            let mut state_idx = perm_idx;
+            let f_rev_x_minus = format!("-f{}", rev_x);
+            let f_rev_x_plus = format!("f{}", rev_x);
+            let f_x_minus = format!("-f{}", x);
+            let f_x_plus = format!("f{}", x);
+            let f_rev_y_minus = format!("-f{}", rev_y);
+            let f_rev_y_plus = format!("f{}", rev_y);
+            let f_y_minus = format!("-f{}", y);
+            let f_y_plus = format!("f{}", y);
+
+            let moves = [
+                Vec::from(["-r0"]),
+                Vec::from(["r0"]),
+                Vec::from(["-d0"]),
+                Vec::from(["d0"]),
+                Vec::from([
+                    "r0",
+                    f_rev_x_minus.as_str(),
+                    "-r0",
+                    f_rev_y_minus.as_str(),
+                    "r0",
+                    f_rev_x_plus.as_str(),
+                    "-r0",
+                    f_rev_y_plus.as_str(),
+                ]),
+                Vec::from([
+                    f_rev_y_minus.as_str(),
+                    "r0",
+                    f_rev_x_minus.as_str(),
+                    "-r0",
+                    f_rev_y_plus.as_str(),
+                    "r0",
+                    f_rev_x_plus.as_str(),
+                    "-r0",
+                ]),
+                Vec::from([
+                    "-r0",
+                    f_rev_x_minus.as_str(),
+                    "r0",
+                    f_y_minus.as_str(),
+                    "-r0",
+                    f_rev_x_plus.as_str(),
+                    "r0",
+                    f_y_plus.as_str(),
+                ]),
+                Vec::from([
+                    f_y_minus.as_str(),
+                    "-r0",
+                    f_rev_x_minus.as_str(),
+                    "r0",
+                    f_y_plus.as_str(),
+                    "-r0",
+                    f_rev_x_plus.as_str(),
+                    "r0",
+                ]),
+                Vec::from([
+                    "-d0",
+                    f_x_plus.as_str(),
+                    "d0",
+                    f_rev_y_plus.as_str(),
+                    "-d0",
+                    f_x_minus.as_str(),
+                    "d0",
+                    f_rev_y_minus.as_str(),
+                ]),
+                Vec::from([
+                    f_rev_y_plus.as_str(),
+                    "-d0",
+                    f_x_plus.as_str(),
+                    "d0",
+                    f_rev_y_minus.as_str(),
+                    "-d0",
+                    f_x_minus.as_str(),
+                    "d0",
+                ]),
+                Vec::from([
+                    "d0",
+                    f_x_plus.as_str(),
+                    "-d0",
+                    f_y_plus.as_str(),
+                    "d0",
+                    f_x_minus.as_str(),
+                    "-d0",
+                    f_y_minus.as_str(),
+                ]),
+                Vec::from([
+                    f_y_plus.as_str(),
+                    "d0",
+                    f_x_plus.as_str(),
+                    "-d0",
+                    f_y_minus.as_str(),
+                    "d0",
+                    f_x_minus.as_str(),
+                    "-d0",
+                ]),
+            ];
+
+            let mut action_idxes = Vec::new();
+            let mut qu = std::collections::VecDeque::new();
+            while let Some(next_index) = prev_state[state_idx] {
+                action_idxes.push(prev_action[state_idx].unwrap());
+                state_idx = next_index;
+                qu.push_back(state_idx);
+            }
+            for action_idx in action_idxes.iter() {
+                let action = &moves[*action_idx];
+                for act in action.iter() {
+                    if !actions.contains_key(*act) {
+                        println!("{}", act);
+                    }
+                    let action = &actions[*act];
+                    state = apply_action(&state, action);
+                    moves_str.push(act.to_string());
+                }
+            }
+        }
+    }
+
+    (state, moves_str)
+}
+
+fn calc_permutation_idx_corner_easy(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    perm_map: &HashMap<Vec<usize>, usize>,
+    dim: usize,
+    pos: usize,
+) -> usize {
+    let rev_pos = dim - 1 - pos;
+    let target_idx = [
+        2 * dim * dim + pos * dim + pos,
+        2 * dim * dim + pos * dim + rev_pos,
+        2 * dim * dim + rev_pos * dim + pos,
+        2 * dim * dim + rev_pos * dim + rev_pos,
+        5 * dim * dim + pos * dim + rev_pos,
+        5 * dim * dim + rev_pos * dim + rev_pos,
+        5 * dim * dim + pos * dim + pos,
+        5 * dim * dim + rev_pos * dim + pos,
+    ];
+    let mut idx2 = 0;
+    let mut idx5 = 4;
+    let mut p = Vec::new();
+    for i in 0..8 {
+        if cur_state[target_idx[i]] == sol_state[target_idx[0]] {
+            p.push(idx2);
+            idx2 += 1;
+        } else {
+            p.push(idx5);
+            idx5 += 1;
+        }
+    }
+    perm_map[&p]
+}
+
+fn bfs0() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
+    let (perm_list, perm_map) = get_perm_map();
+    let mut priority_qu = BinaryHeap::new();
+    let actions = [
+        (Vec::from([2, 0, 3, 1, 4, 5, 6, 7]), 1), // rotate top
+        (Vec::from([1, 3, 0, 2, 4, 5, 6, 7]), 1), // rotate top (rev)
+        (Vec::from([0, 1, 2, 3, 6, 4, 7, 5]), 1), // ratate btm
+        (Vec::from([0, 1, 2, 3, 5, 7, 4, 6]), 1), // rotate btm (rev)
+        (Vec::from([5, 1, 0, 3, 4, 7, 6, 2]), 3), // rotate right
+        (Vec::from([7, 1, 5, 3, 4, 2, 6, 0]), 4), // rotate right2
+        (Vec::from([2, 1, 7, 3, 4, 0, 6, 5]), 3), // rotate right (rev)
+        (Vec::from([0, 3, 2, 6, 1, 5, 4, 7]), 3), // rotate left
+        (Vec::from([0, 6, 2, 4, 3, 5, 1, 7]), 4), // rotate left2
+        (Vec::from([0, 4, 2, 1, 6, 5, 3, 7]), 3), // rotate left (rev)
+    ];
+    let mut start = Vec::from([0, 1, 2, 3, 4, 5, 6, 7]);
+    let mut prev_state: Vec<Option<usize>> = vec![None; perm_list.len()];
+    let mut prev_action: Vec<Option<usize>> = vec![None; perm_list.len()];
+    let mut cost: Vec<i32> = vec![std::i32::MAX; perm_list.len()];
+    for _ in 0..4 {
+        for _ in 0..4 {
+            priority_qu.push(Reverse((0, start.clone())));
+            let idx = perm_map[&start];
+            cost[idx] = 0;
+            start = apply_perm(&start, &actions[0].0);
+        }
+        start = apply_perm(&start, &actions[2].0);
+    }
+    while let Some(Reverse((cur_cost, state))) = priority_qu.pop() {
+        let idx = perm_map[&state];
+        let c = cost[idx];
+        if cur_cost > c {
+            continue;
+        }
+        for (action_idx, (perm, action_cost)) in actions.iter().enumerate() {
+            let next_state = apply_perm(&state, &perm);
+            let next_idx = perm_map[&next_state];
+            if action_cost + c < cost[next_idx] {
+                cost[next_idx] = action_cost + c;
+                prev_state[next_idx] = Some(idx);
+                prev_action[next_idx] = Some(action_idx);
+                priority_qu.push(Reverse((action_cost + c, next_state)));
+            }
+        }
+    }
+    // let mut max_cost = 0;
+    // let mut max_idx = 0;
+    // for (idx, c) in cost.iter().enumerate() {
+    //     if *c > max_cost {
+    //         max_cost = *c;
+    //         max_idx = idx;
+    //     }
+    // }
+    // println!("max_cost: {} {:?}", max_cost, perm_list[max_idx]);
+    (prev_state, prev_action)
+}
+
+fn solve_green_middle_corner_easy(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    actions: &HashMap<String, Vec<(usize, usize)>>,
+    dim: usize,
+) -> (Vec<usize>, Vec<String>) {
+    let (_, perm_map) = get_perm_map();
+    let (prev_state, prev_action) = bfs0();
+    let mut state = cur_state.clone();
+    let mut moves_str = Vec::new();
+    for pos in (1..=dim / 2 - 1).rev() {
+        let rev_pos = dim - 1 - pos;
+        let perm_idx = calc_permutation_idx_corner_easy(&state, sol_state, &perm_map, dim, pos);
+        let mut state_idx = perm_idx;
+        let f_rev_minus = format!("-f{}", rev_pos);
+        let f_rev_plus = format!("f{}", rev_pos);
+        let f_minus = format!("-f{}", pos);
+        let f_plus = format!("f{}", pos);
+        let moves = [
+            Vec::from(["-r0"]),
+            Vec::from(["r0"]),
+            Vec::from(["-d0"]),
+            Vec::from(["d0"]),
+            Vec::from([f_rev_minus.as_str(), "r0", f_rev_plus.as_str()]),
+            Vec::from([f_rev_minus.as_str(), "r0", "r0", f_rev_plus.as_str()]),
+            Vec::from([f_rev_minus.as_str(), "-r0", f_rev_plus.as_str()]),
+            Vec::from([f_minus.as_str(), "r0", f_plus.as_str()]),
+            Vec::from([f_minus.as_str(), "r0", "r0", f_plus.as_str()]),
+            Vec::from([f_minus.as_str(), "-r0", f_plus.as_str()]),
+        ];
+        let mut action_idxes = Vec::new();
+        while let Some(next_index) = prev_state[state_idx] {
+            action_idxes.push(prev_action[state_idx].unwrap());
+            state_idx = next_index;
+        }
+        for action_idx in action_idxes.iter() {
+            let action = &moves[*action_idx];
+            for act in action.iter() {
+                if !actions.contains_key(*act) {
+                    println!("{}", act);
+                }
+                let action = &actions[*act];
+                state = apply_action(&state, action);
+                moves_str.push(act.to_string());
+            }
+        }
+    }
+    (state, moves_str)
 }
