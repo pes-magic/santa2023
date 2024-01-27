@@ -537,7 +537,7 @@ fn solve_cube(
     let checker_cube = sol_state.starts_with("A;B;A;B;A;B;A;B;A");
     let distinct_cube = sol_state.starts_with("N0");
     // Already have optimal solution for N=2
-    if dim <= 8 {
+    if dim <= 2 {
         return None;
     }
     if dim % 2 == 0 && checker_cube {
