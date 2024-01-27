@@ -9,23 +9,6 @@ use std::collections::HashMap;
 mod cube_moves;
 use cube_moves::P3;
 
-fn create_actions(
-    allowed_moves: &HashMap<String, Vec<i16>>,
-) -> HashMap<String, Vec<(usize, usize)>> {
-    let mut actions = HashMap::new();
-    for (k, v) in allowed_moves.iter() {
-        let mut action_k: Vec<(usize, usize)> = Vec::new();
-        for (idx, i) in v.iter().enumerate() {
-            if idx == *i as usize {
-                continue;
-            }
-            action_k.push((idx, *i as usize));
-        }
-        actions.insert(k.clone(), action_k);
-    }
-    actions
-}
-
 fn index_to_p3(idx: usize, dim: usize) -> P3 {
     let face = idx / dim.pow(2);
     let row = idx % dim.pow(2) / dim;
@@ -63,40 +46,6 @@ fn calc_movable(actions: &HashMap<String, Vec<i16>>) -> Vec<Vec<usize>> {
         }
     }
     movable
-}
-
-fn find_edge_pairs(actions: &HashMap<String, Vec<i16>>) -> Vec<usize> {
-    let piece_num = actions.values().next().unwrap().len();
-    let mut groups = vec![0 as i128; piece_num];
-    let mut idx = 0;
-    for (k, v) in actions.iter() {
-        if k.starts_with("-") {
-            continue;
-        }
-        for (j, val) in v.iter().enumerate() {
-            if j as i16 == *val {
-                continue;
-            }
-            groups[j] |= 1 << idx;
-        }
-        idx += 1;
-    }
-    let mut val_groups: HashMap<i128, Vec<usize>> = HashMap::new();
-    for (i, v) in groups.iter().enumerate() {
-        if val_groups.contains_key(v) {
-            val_groups.get_mut(v).unwrap().push(i);
-        } else {
-            val_groups.insert(*v, vec![i; 1]);
-        }
-    }
-    let mut res = vec![piece_num; piece_num];
-    for v in val_groups.values() {
-        if v.len() == 2 {
-            res[v[0]] = v[1];
-            res[v[1]] = v[0];
-        }
-    }
-    res
 }
 
 fn solve_while_middle(
@@ -195,406 +144,6 @@ fn solve_yellow_middle(
         }
     }
     (state, moves)
-}
-
-fn solve_blue_middle(
-    cur_state: &Vec<usize>,
-    sol_state: &Vec<usize>,
-    allowed_moves_inv: &HashMap<String, &Vec<i16>>,
-    actions: &HashMap<String, Vec<(usize, usize)>>,
-    movable_pos: &Vec<Vec<usize>>,
-    dim: usize,
-) -> (Vec<usize>, Vec<String>) {
-    let mut state = cur_state.clone();
-    let mut moves = Vec::new();
-
-    for i in (1..dim - 1).rev() {
-        for j in 1..dim - 1 {
-            let target_index = i * dim + j;
-            if state[target_index] == sol_state[target_index] {
-                continue;
-            }
-            let mut cur_index = 0;
-            for k in movable_pos[target_index].iter() {
-                if dim * dim <= *k && *k < 2 * dim * dim {
-                    continue;
-                }
-                if 3 * dim * dim <= *k && *k < 4 * dim * dim {
-                    continue;
-                }
-                if (i + 1) * dim <= *k && *k < dim * dim {
-                    continue;
-                }
-                if i * dim <= *k && *k < i * dim + j {
-                    continue;
-                }
-                if state[*k] == sol_state[target_index] {
-                    cur_index = *k;
-                    break;
-                }
-            }
-            if cur_index == 0 {
-                panic!("source index not found");
-            }
-            let target_p3 = index_to_p3(target_index, dim);
-            while cur_index != target_index {
-                let cur_p3 = index_to_p3(cur_index, dim);
-                let m = cube_moves::solve_blue_middle_impl(&cur_p3, &target_p3, dim);
-                for act in m.iter() {
-                    let action = &actions[act];
-                    state = cube_moves::apply_action(&state, action);
-                    cur_index = allowed_moves_inv[act][cur_index] as usize;
-                    moves.push(act.clone());
-                }
-            }
-        }
-    }
-    (state, moves)
-}
-
-fn solve_orange_middle(
-    cur_state: &Vec<usize>,
-    sol_state: &Vec<usize>,
-    allowed_moves_inv: &HashMap<String, &Vec<i16>>,
-    actions: &HashMap<String, Vec<(usize, usize)>>,
-    movable_pos: &Vec<Vec<usize>>,
-    dim: usize,
-) -> (Vec<usize>, Vec<String>) {
-    let mut state = cur_state.clone();
-    let mut moves = Vec::new();
-    let mut checked = vec![false; dim * dim];
-
-    for (i, j) in middle_check_order_orange(dim) {
-        let target_index = (4 * dim + i) * dim + j;
-        checked[i * dim + j] = true;
-        if state[target_index] == sol_state[target_index] {
-            continue;
-        }
-        let mut cur_index = 0;
-        for k in movable_pos[target_index].iter() {
-            if *k < 2 * dim * dim {
-                continue;
-            }
-            if 3 * dim * dim <= *k && *k < 4 * dim * dim {
-                continue;
-            }
-            if 4 * dim * dim <= *k && *k < 5 * dim * dim && checked[*k - 4 * dim * dim] {
-                continue;
-            }
-            if state[*k] == sol_state[target_index] {
-                cur_index = *k;
-                break;
-            }
-        }
-        if cur_index == 0 {
-            panic!("source index not found");
-        }
-        let target_p3 = index_to_p3(target_index, dim);
-        while cur_index != target_index {
-            let cur_p3 = index_to_p3(cur_index, dim);
-            let m = cube_moves::solve_orange_middle_impl(&cur_p3, &target_p3, dim);
-            for act in m.iter() {
-                let action = &actions[act];
-                state = cube_moves::apply_action(&state, action);
-                cur_index = allowed_moves_inv[act][cur_index] as usize;
-                moves.push(act.clone());
-            }
-        }
-    }
-    (state, moves)
-}
-
-fn middle_check_order_orange(dim: usize) -> Vec<(usize, usize)> {
-    let arr = middle_check_order_green(dim);
-    let mut res = Vec::new();
-    // rotate 90
-    for v in arr.iter() {
-        let x = 2 * v.0 as i32 - (dim as i32 - 1);
-        let y = 2 * v.1 as i32 - (dim as i32 - 1);
-        let rx = y;
-        let ry = -x;
-        res.push((
-            (rx + (dim as i32 - 1)) as usize / 2,
-            (ry + (dim as i32 - 1)) as usize / 2,
-        ));
-    }
-    res
-}
-
-fn middle_check_order_green(dim: usize) -> Vec<(usize, usize)> {
-    let mut res = Vec::new();
-    let mut mark = vec![vec![false; dim]; dim];
-    let in_left = (dim - 2) / 2;
-    let in_right = (dim + 1) / 2;
-    for i in in_left..=in_right {
-        for j in in_left..=in_right {
-            res.push((i, j));
-            mark[i][j] = true;
-        }
-    }
-    for i in 1..in_left {
-        res.push((i, i));
-        mark[i][i] = true;
-        res.push((i, dim - 1 - i));
-        mark[i][dim - 1 - i] = true;
-        res.push((dim - 1 - i, i));
-        mark[dim - 1 - i][i] = true;
-        res.push((dim - 1 - i, dim - 1 - i));
-        mark[dim - 1 - i][dim - 1 - i] = true;
-    }
-    for s in 1..in_left {
-        for i in in_left - s..=in_right + s {
-            for j in in_left - s..=in_right + s {
-                if mark[i][j] {
-                    continue;
-                }
-                res.push((i, j));
-                mark[i][j] = true;
-            }
-        }
-    }
-    res
-}
-
-fn solve_front_edge(
-    cur_state: &Vec<usize>,
-    sol_state: &Vec<usize>,
-    allowed_moves_inv: &HashMap<String, &Vec<i16>>,
-    actions: &HashMap<String, Vec<(usize, usize)>>,
-    movable_pos: &Vec<Vec<usize>>,
-    edge_pairs: &Vec<usize>,
-    dim: usize,
-) -> (Vec<usize>, Vec<String>) {
-    let mut state = cur_state.clone();
-    let mut moves = Vec::new();
-    let mut checked = vec![false; 6 * dim * dim];
-
-    for target_index in front_edge_check_order(dim) {
-        let pair_index = edge_pairs[target_index];
-        if state[target_index] == sol_state[target_index]
-            && state[pair_index] == sol_state[pair_index]
-        {
-            checked[target_index] = true;
-            checked[pair_index] = true;
-            continue;
-        }
-        let mut cur_index = 0;
-        for k in movable_pos[target_index].iter() {
-            if checked[*k] {
-                continue;
-            }
-            if state[*k] == sol_state[target_index]
-                && state[edge_pairs[*k]] == sol_state[pair_index]
-            {
-                cur_index = *k;
-                break;
-            }
-        }
-        if cur_index == 0 {
-            panic!("source index not found");
-        }
-        let target_p3 = index_to_p3(target_index, dim);
-        while cur_index != target_index {
-            let cur_p3 = index_to_p3(cur_index, dim);
-            let mut white_side = cur_index / dim.pow(2);
-            if white_side < 2 {
-                white_side = 1 - white_side;
-            }
-            let m =
-                cube_moves::solve_front_edge_segments_impl(&cur_p3, &target_p3, dim, white_side);
-            if m.is_empty() {
-                break;
-            }
-            for act in m.iter() {
-                let action = &actions[act];
-                state = cube_moves::apply_action(&state, action);
-                cur_index = allowed_moves_inv[act][cur_index] as usize;
-                moves.push(act.clone());
-            }
-        }
-        checked[target_index] = true;
-        checked[pair_index] = true;
-    }
-    (state, moves)
-}
-
-fn solve_back_edge(
-    cur_state: &Vec<usize>,
-    sol_state: &Vec<usize>,
-    allowed_moves_inv: &HashMap<String, &Vec<i16>>,
-    actions: &HashMap<String, Vec<(usize, usize)>>,
-    movable_pos: &Vec<Vec<usize>>,
-    edge_pairs: &Vec<usize>,
-    dim: usize,
-) -> (Vec<usize>, Vec<String>) {
-    let mut state = cur_state.clone();
-    let mut moves = Vec::new();
-    let mut checked = vec![false; 6 * dim * dim];
-
-    for target_index in front_edge_check_order(dim) {
-        let pair_index = edge_pairs[target_index];
-        checked[target_index] = true;
-        checked[pair_index] = true;
-    }
-    for target_index in back_edge_check_order(dim) {
-        let pair_index = edge_pairs[target_index];
-        if state[target_index] == sol_state[target_index]
-            && state[pair_index] == sol_state[pair_index]
-        {
-            checked[target_index] = true;
-            checked[pair_index] = true;
-            continue;
-        }
-        let mut cur_index = 0;
-        for k in movable_pos[target_index].iter() {
-            if checked[*k] {
-                continue;
-            }
-            if state[*k] == sol_state[target_index]
-                && state[edge_pairs[*k]] == sol_state[pair_index]
-            {
-                cur_index = *k;
-                break;
-            }
-        }
-        if cur_index == 0 {
-            panic!("source index not found");
-        }
-        let target_p3 = index_to_p3(target_index, dim);
-        while cur_index != target_index {
-            let cur_p3 = index_to_p3(cur_index, dim);
-            let mut yellow_side = cur_index / dim.pow(2);
-            if yellow_side < 2 {
-                yellow_side = 1 - yellow_side;
-            }
-            let m =
-                cube_moves::solve_back_edge_segments_impl(&cur_p3, &target_p3, dim, yellow_side);
-            if m.is_empty() {
-                break;
-            }
-            for act in m.iter() {
-                let action = &actions[act];
-                state = cube_moves::apply_action(&state, action);
-                cur_index = allowed_moves_inv[act][cur_index] as usize;
-                moves.push(act.clone());
-            }
-        }
-        checked[target_index] = true;
-        checked[pair_index] = true;
-    }
-    (state, moves)
-}
-
-fn solve_middle_edge(
-    cur_state: &Vec<usize>,
-    sol_state: &Vec<usize>,
-    allowed_moves_inv: &HashMap<String, &Vec<i16>>,
-    actions: &HashMap<String, Vec<(usize, usize)>>,
-    movable_pos: &Vec<Vec<usize>>,
-    edge_pairs: &Vec<usize>,
-    dim: usize,
-) -> (Vec<usize>, Vec<String>) {
-    let mut state = cur_state.clone();
-    let mut moves = Vec::new();
-    let mut checked = vec![false; 6 * dim * dim];
-
-    for target_index in middle_edge_check_order(dim) {
-        let pair_index = edge_pairs[target_index];
-        if state[target_index] == sol_state[target_index]
-            && state[pair_index] == sol_state[pair_index]
-        {
-            checked[target_index] = true;
-            checked[pair_index] = true;
-            continue;
-        }
-        let mut cur_index = 0;
-        for k in movable_pos[target_index].iter() {
-            if checked[*k] {
-                continue;
-            }
-            if state[*k] == sol_state[target_index]
-                && state[edge_pairs[*k]] == sol_state[pair_index]
-            {
-                cur_index = *k;
-                break;
-            }
-        }
-        if cur_index == 0 {
-            panic!("source index not found");
-        }
-        let target_p3 = index_to_p3(target_index, dim);
-        while cur_index != target_index {
-            let cur_p3 = index_to_p3(cur_index, dim);
-            let m = cube_moves::solve_middle_edge_segments_impl(&cur_p3, &target_p3, dim);
-            if m.is_empty() {
-                break;
-            }
-            for act in m.iter() {
-                let action = &actions[act];
-                state = cube_moves::apply_action(&state, action);
-                cur_index = allowed_moves_inv[act][cur_index] as usize;
-                moves.push(act.clone());
-            }
-        }
-        checked[target_index] = true;
-        checked[pair_index] = true;
-    }
-    (state, moves)
-}
-
-fn front_edge_check_order(dim: usize) -> Vec<usize> {
-    let mut res = Vec::new();
-    for i in 1..dim - 1 {
-        res.push((0, i));
-    }
-    for i in 1..dim - 1 {
-        res.push((i, dim - 1));
-    }
-    for i in 1..dim - 1 {
-        res.push((dim - 1, i));
-    }
-    for i in 1..dim - 1 {
-        res.push((i, 0));
-    }
-    res.iter()
-        .map(|(i, j)| (dim + i) * dim + j)
-        .collect::<Vec<usize>>()
-}
-
-fn back_edge_check_order(dim: usize) -> Vec<usize> {
-    let mut res = Vec::new();
-    for i in (1..dim - 1).rev() {
-        res.push((0, i));
-    }
-    for i in 1..dim - 1 {
-        res.push((i, 0));
-    }
-    for i in (1..dim - 1).rev() {
-        res.push((dim - 1, i));
-    }
-    for i in 1..dim - 1 {
-        res.push((i, dim - 1));
-    }
-    res.iter()
-        .map(|(i, j)| (3 * dim + i) * dim + j)
-        .collect::<Vec<usize>>()
-}
-
-fn middle_edge_check_order(dim: usize) -> Vec<usize> {
-    let mut res = Vec::new();
-    for i in (1..dim - 1).rev() {
-        res.push(i * dim);
-    }
-    for i in (1..dim - 1).rev() {
-        res.push(i * dim + dim - 1);
-    }
-    for i in 1..dim - 1 {
-        res.push((5 * dim + i) * dim + dim - 1);
-    }
-    for i in 1..dim - 1 {
-        res.push((5 * dim + i) * dim);
-    }
-    res
 }
 
 fn move_translation(dim: usize) -> HashMap<String, String> {
@@ -738,42 +287,6 @@ fn distinct_state2ubl(init_state: &str, dim: usize) -> String {
     state2ubl(&state.join(";"))
 }
 
-struct History {
-    action: usize,
-    parent: Option<usize>,
-}
-
-struct Node {
-    state: Vec<usize>,
-    id: usize,
-    parent: Option<usize>,
-    action: Option<usize>,
-    cost: i32,
-}
-
-struct Candidate {
-    parent: usize,
-    action: usize,
-    cost: i32,
-    rand: u32,
-}
-
-fn compare_candidate(a: &Candidate, b: &Candidate) -> std::cmp::Ordering {
-    if a.cost < b.cost {
-        std::cmp::Ordering::Less
-    } else if a.cost > b.cost {
-        std::cmp::Ordering::Greater
-    } else {
-        if a.rand < b.rand {
-            std::cmp::Ordering::Less
-        } else if a.rand > b.rand {
-            std::cmp::Ordering::Greater
-        } else {
-            std::cmp::Ordering::Equal
-        }
-    }
-}
-
 fn solve_cube_by_rule(
     puzzle: &solver::Puzzle,
     move_map: &HashMap<String, String>,
@@ -781,7 +294,7 @@ fn solve_cube_by_rule(
     dim: usize,
 ) -> Option<String> {
     let (piece_map, piece_list) = solver::gen_piece_map(&puzzle.solution_state);
-    let actions = create_actions(&allowed_moves);
+    let actions = cube_moves::create_actions(&allowed_moves);
     let init_state = solver::state_to_list(&puzzle.initial_state, &piece_map);
     let sol_state = solver::state_to_list(&puzzle.solution_state, &piece_map);
     let movable_pos = calc_movable(&allowed_moves);
@@ -793,11 +306,10 @@ fn solve_cube_by_rule(
             allowed_moves_inv.insert(format!("-{}", k), v);
         }
     }
-    let edge_pairs = find_edge_pairs(allowed_moves);
     let mut state = init_state.clone();
     let mut moves = Vec::new();
     let (end_state, m) = solve_while_middle(
-        &init_state,
+        &state,
         &sol_state,
         &allowed_moves_inv,
         &actions,
@@ -831,41 +343,7 @@ fn solve_cube_by_rule(
             .collect::<Vec<&str>>()
             .len()
     );
-    let (end_state, m) = solve_blue_middle(
-        &state,
-        &sol_state,
-        &allowed_moves_inv,
-        &actions,
-        &movable_pos,
-        dim,
-    );
-    state = end_state;
-    moves.extend(m);
-    println!(
-        "end blue: {}",
-        solver::cancel_moves_in_cube(&moves.join("."))
-            .split(".")
-            .collect::<Vec<&str>>()
-            .len()
-    );
-    let (end_state, m) = solve_orange_middle(
-        &state,
-        &sol_state,
-        &allowed_moves_inv,
-        &actions,
-        &movable_pos,
-        dim,
-    );
-    state = end_state;
-    moves.extend(m);
-    println!(
-        "end orange: {}",
-        solver::cancel_moves_in_cube(&moves.join("."))
-            .split(".")
-            .collect::<Vec<&str>>()
-            .len()
-    );
-    let (end_state, m) = cube_moves::solve_green_middle_impl(&state, &sol_state, &actions, dim);
+    let (end_state, m) = cube_moves::solve_four_faces_impl(&state, &sol_state, &actions, dim);
     state = end_state;
     moves.extend(m);
     println!(
@@ -875,45 +353,6 @@ fn solve_cube_by_rule(
             .collect::<Vec<&str>>()
             .len()
     );
-    // Edges can be solved in a shorter steps by the solver.
-    /*
-    let (end_state, m) = solve_front_edge(
-        &state,
-        &sol_state,
-        &allowed_moves_inv,
-        &actions,
-        &movable_pos,
-        &edge_pairs,
-        dim,
-    );
-    state = end_state;
-    moves.extend(m);
-    println!("end front edge: {}", moves.len());
-    let (end_state, m) = solve_back_edge(
-        &state,
-        &sol_state,
-        &allowed_moves_inv,
-        &actions,
-        &movable_pos,
-        &edge_pairs,
-        dim,
-    );
-    state = end_state;
-    moves.extend(m);
-    println!("end back edge: {}", moves.len());
-    let (end_state, m) = solve_middle_edge(
-        &state,
-        &sol_state,
-        &allowed_moves_inv,
-        &actions,
-        &movable_pos,
-        &edge_pairs,
-        dim,
-    );
-    state = end_state;
-    moves.extend(m);
-    println!("end middle edge {}", moves.len());
-    */
     // println!("Solved {}", moves.len());
     // for k in 0..6 {
     //     for i in 0..dim {
@@ -995,6 +434,12 @@ fn solve_cube_by_solver(
             }
         }
     }
+    if sol.is_empty() {
+        println!("Could not solved by solver");
+        println!("{:?}", outputs);
+        return None;
+    }
+
     // println!("raw_solution {}", sol);
     // join M[m] for m in sol.split(" ") with "."
     let mut mmoves = sol
@@ -1092,7 +537,7 @@ fn solve_cube(
     let checker_cube = sol_state.starts_with("A;B;A;B;A;B;A;B;A");
     let distinct_cube = sol_state.starts_with("N0");
     // Already have optimal solution for N=2
-    if dim <= 2 {
+    if dim <= 8 {
         return None;
     }
     if dim % 2 == 0 && checker_cube {
@@ -1101,7 +546,7 @@ fn solve_cube(
     if distinct_cube {
         return None;
     }
-    if dim <= 10 {
+    if dim <= 8 {
         solve_cube_by_solver(init_state, sol_state, &move_map, allowed_moves, dim)
     } else {
         solve_cube_by_rule(puzzle, &move_map, allowed_moves, dim)

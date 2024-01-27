@@ -8,6 +8,8 @@ edition = "2021"
 [dependencies]
 csv = "*"
 itertools = "*"
+once_cell = "*"
+serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 rand = "*"
 rayon = "*"
