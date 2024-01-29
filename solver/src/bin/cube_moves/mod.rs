@@ -18,6 +18,135 @@ static BFS_FOUR_EDGE: Lazy<(Vec<Option<usize>>, Vec<Option<usize>>)> =
 static PERM_FOUR_CORNER: Lazy<(Vec<u32>, HashMap<u32, usize>)> =
     Lazy::new(|| gen_perm_map_four_faces_impl());
 
+#[allow(dead_code)]
+pub fn rev_move(s: &String) -> String {
+    if s.starts_with("-") {
+        s[1..].to_string()
+    } else {
+        format!("-{}", s)
+    }
+}
+
+#[allow(dead_code)]
+pub fn rot_move_f(s: &String, dim: usize) -> String {
+    if s.starts_with("r") {
+        format!("d{}", &s[1..])
+    } else if s.starts_with("-r") {
+        format!("-d{}", &s[2..])
+    } else if s.starts_with("d") {
+        format!("-r{}", dim - 1 - s[1..].parse::<usize>().unwrap())
+    } else if s.starts_with("-d") {
+        format!("r{}", dim - 1 - s[2..].parse::<usize>().unwrap())
+    } else {
+        s.to_string()
+    }
+}
+
+#[allow(dead_code)]
+pub fn rot2_move_f(s: &String, dim: usize) -> String {
+    if s.starts_with("r") {
+        format!("-r{}", dim - 1 - &s[1..].parse::<usize>().unwrap())
+    } else if s.starts_with("-r") {
+        format!("r{}", dim - 1 - &s[2..].parse::<usize>().unwrap())
+    } else if s.starts_with("f") {
+        format!("-f{}", dim - 1 - s[1..].parse::<usize>().unwrap())
+    } else if s.starts_with("-f") {
+        format!("f{}", dim - 1 - s[2..].parse::<usize>().unwrap())
+    } else {
+        s.to_string()
+    }
+}
+
+#[allow(dead_code)]
+pub fn rot_move_d(s: &String, dim: usize) -> String {
+    if s.starts_with("r") {
+        format!("f{}", &s[1..])
+    } else if s.starts_with("-r") {
+        format!("-f{}", &s[2..])
+    } else if s.starts_with("f") {
+        format!("-r{}", dim - 1 - s[1..].parse::<usize>().unwrap())
+    } else if s.starts_with("-f") {
+        format!("r{}", dim - 1 - s[2..].parse::<usize>().unwrap())
+    } else {
+        s.to_string()
+    }
+}
+
+#[allow(dead_code)]
+pub fn rot2_move_d(s: &String, dim: usize) -> String {
+    if s.starts_with("r") {
+        format!("-r{}", dim - 1 - &s[1..].parse::<usize>().unwrap())
+    } else if s.starts_with("-r") {
+        format!("r{}", dim - 1 - &s[2..].parse::<usize>().unwrap())
+    } else if s.starts_with("f") {
+        format!("-f{}", dim - 1 - s[1..].parse::<usize>().unwrap())
+    } else if s.starts_with("-f") {
+        format!("f{}", dim - 1 - s[2..].parse::<usize>().unwrap())
+    } else {
+        s.to_string()
+    }
+}
+
+#[allow(dead_code)]
+pub fn rot_move_r(s: &String, dim: usize) -> String {
+    if s.starts_with("f") {
+        format!("d{}", &s[1..])
+    } else if s.starts_with("-f") {
+        format!("-d{}", &s[2..])
+    } else if s.starts_with("d") {
+        format!("-f{}", dim - 1 - s[1..].parse::<usize>().unwrap())
+    } else if s.starts_with("-d") {
+        format!("f{}", dim - 1 - s[2..].parse::<usize>().unwrap())
+    } else {
+        s.to_string()
+    }
+}
+
+#[allow(dead_code)]
+pub fn rot2_move_r(s: &String, dim: usize) -> String {
+    if s.starts_with("f") {
+        format!("-f{}", dim - 1 - &s[1..].parse::<usize>().unwrap())
+    } else if s.starts_with("-f") {
+        format!("f{}", dim - 1 - &s[2..].parse::<usize>().unwrap())
+    } else if s.starts_with("d") {
+        format!("-d{}", dim - 1 - s[1..].parse::<usize>().unwrap())
+    } else if s.starts_with("-d") {
+        format!("d{}", dim - 1 - s[2..].parse::<usize>().unwrap())
+    } else {
+        s.to_string()
+    }
+}
+
+#[allow(dead_code)]
+pub fn rot_sequence_f(seq: &Vec<String>, dim: usize) -> Vec<String> {
+    seq.iter().map(|s| rot_move_f(s, dim)).collect()
+}
+
+#[allow(dead_code)]
+pub fn rot2_sequence_f(seq: &Vec<String>, dim: usize) -> Vec<String> {
+    seq.iter().map(|s| rot2_move_f(s, dim)).collect()
+}
+
+#[allow(dead_code)]
+pub fn rot_sequence_d(seq: &Vec<String>, dim: usize) -> Vec<String> {
+    seq.iter().map(|s| rot_move_d(s, dim)).collect()
+}
+
+#[allow(dead_code)]
+pub fn rot2_sequence_d(seq: &Vec<String>, dim: usize) -> Vec<String> {
+    seq.iter().map(|s| rot2_move_d(s, dim)).collect()
+}
+
+#[allow(dead_code)]
+pub fn rot_sequence_r(seq: &Vec<String>, dim: usize) -> Vec<String> {
+    seq.iter().map(|s| rot_move_r(s, dim)).collect()
+}
+
+#[allow(dead_code)]
+pub fn rot2_sequence_r(seq: &Vec<String>, dim: usize) -> Vec<String> {
+    seq.iter().map(|s| rot2_move_r(s, dim)).collect()
+}
+
 #[derive(Debug, Clone)]
 pub struct P3 {
     pub x: usize,
@@ -2201,11 +2330,7 @@ fn solve_four_faces_corner(
         for action_idx in action_idxes.iter() {
             let action = &moves[*action_idx];
             for act in action.iter().rev() {
-                let inv_act = if act.starts_with("-") {
-                    act[1..].to_string()
-                } else {
-                    format!("-{}", act)
-                };
+                let inv_act = rev_move(act);
                 if !actions.contains_key(inv_act.as_str()) {
                     println!("{}", inv_act);
                 }
@@ -2294,53 +2419,101 @@ fn apply_action_to_packed_perm(packed_perm: u32, action: &Vec<usize>) -> u32 {
     res
 }
 
-fn target_idx_four_corner(dim: usize, pos: usize) -> [usize; 16] {
-    let rev_pos = dim - 1 - pos;
-    [
-        0 * dim * dim + pos * dim + pos,
-        0 * dim * dim + pos * dim + rev_pos,
-        0 * dim * dim + rev_pos * dim + pos,
-        0 * dim * dim + rev_pos * dim + rev_pos,
-        2 * dim * dim + pos * dim + pos,
-        2 * dim * dim + pos * dim + rev_pos,
-        2 * dim * dim + rev_pos * dim + pos,
-        2 * dim * dim + rev_pos * dim + rev_pos,
-        4 * dim * dim + pos * dim + pos,
-        4 * dim * dim + pos * dim + rev_pos,
-        4 * dim * dim + rev_pos * dim + pos,
-        4 * dim * dim + rev_pos * dim + rev_pos,
-        5 * dim * dim + pos * dim + pos,
-        5 * dim * dim + pos * dim + rev_pos,
-        5 * dim * dim + rev_pos * dim + pos,
-        5 * dim * dim + rev_pos * dim + rev_pos,
-    ]
+#[allow(dead_code)]
+pub fn target_idx_four_corner(dim: usize, pos: usize) -> Vec<usize> {
+    target_idx_corner(dim, pos, &vec![0, 2, 4, 5])
 }
 
-fn target_idx_four_edge(dim: usize, pos_y: usize, pos_x: usize) -> [usize; 16] {
+#[allow(dead_code)]
+pub fn target_idx_four_edge(dim: usize, pos_y: usize, pos_x: usize) -> Vec<usize> {
+    target_idx_edge(dim, pos_y, pos_x, &vec![0, 2, 4, 5])
+}
+
+#[allow(dead_code)]
+pub fn target_idx_corner(dim: usize, pos: usize, faces: &Vec<usize>) -> Vec<usize> {
+    let rev_pos = dim - 1 - pos;
+    let mut res = Vec::new();
+    for f in faces {
+        res.push(f * dim * dim + pos * dim + pos);
+        res.push(f * dim * dim + pos * dim + rev_pos);
+        res.push(f * dim * dim + rev_pos * dim + rev_pos);
+        res.push(f * dim * dim + rev_pos * dim + pos);
+    }
+    res
+}
+
+#[allow(dead_code)]
+pub fn target_idx_corner_distinct(dim: usize, pos: usize, faces: &Vec<usize>) -> Vec<usize> {
+    let rev_pos = dim - 1 - pos;
+    let mut res = Vec::new();
+    for f in faces {
+        res.push(f * dim * dim + pos * dim + pos);
+        res.push(f * dim * dim + pos * dim + rev_pos);
+        res.push(f * dim * dim + rev_pos * dim + rev_pos);
+        res.push(f * dim * dim + rev_pos * dim + pos);
+    }
+    res
+}
+
+#[allow(dead_code)]
+pub fn target_idx_edge(dim: usize, pos_y: usize, pos_x: usize, faces: &Vec<usize>) -> Vec<usize> {
     let rev_pos_x = dim - 1 - pos_x;
     let rev_pos_y = dim - 1 - pos_y;
-
-    [
-        0 * dim * dim + pos_y * dim + pos_x,
-        0 * dim * dim + rev_pos_x * dim + pos_y,
-        0 * dim * dim + rev_pos_y * dim + rev_pos_x,
-        0 * dim * dim + pos_x * dim + rev_pos_y,
-        2 * dim * dim + pos_y * dim + pos_x,
-        2 * dim * dim + rev_pos_x * dim + pos_y,
-        2 * dim * dim + rev_pos_y * dim + rev_pos_x,
-        2 * dim * dim + pos_x * dim + rev_pos_y,
-        4 * dim * dim + pos_y * dim + pos_x,
-        4 * dim * dim + rev_pos_x * dim + pos_y,
-        4 * dim * dim + rev_pos_y * dim + rev_pos_x,
-        4 * dim * dim + pos_x * dim + rev_pos_y,
-        5 * dim * dim + pos_y * dim + pos_x,
-        5 * dim * dim + rev_pos_x * dim + pos_y,
-        5 * dim * dim + rev_pos_y * dim + rev_pos_x,
-        5 * dim * dim + pos_x * dim + rev_pos_y,
-    ]
+    let mut res = Vec::new();
+    for f in faces {
+        res.push(f * dim * dim + pos_y * dim + pos_x);
+        res.push(f * dim * dim + pos_x * dim + rev_pos_y);
+        res.push(f * dim * dim + rev_pos_y * dim + rev_pos_x);
+        res.push(f * dim * dim + rev_pos_x * dim + pos_y);
+    }
+    res
 }
 
-fn sequence_moves_four_corner(dim: usize, pos: usize) -> Vec<Vec<String>> {
+#[allow(dead_code)]
+pub fn target_idx_edge_distinct(
+    dim: usize,
+    pos_y: usize,
+    pos_x: usize,
+    faces: &Vec<usize>,
+) -> Vec<usize> {
+    let rev_pos_x = dim - 1 - pos_x;
+    let rev_pos_y = dim - 1 - pos_y;
+    let mut res = Vec::new();
+    for f in faces {
+        res.push(f * dim * dim + pos_y * dim + pos_x);
+        res.push(f * dim * dim + pos_x * dim + rev_pos_y);
+        res.push(f * dim * dim + rev_pos_y * dim + rev_pos_x);
+        res.push(f * dim * dim + rev_pos_x * dim + pos_y);
+    }
+    res
+}
+
+#[allow(dead_code)]
+
+pub fn calc_face_rot(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    dim: usize,
+    face: usize,
+) -> usize {
+    let pos = dim / 2 - 1;
+    let rev_pos = dim - 1 - pos;
+    let target_idx = [
+        (face * dim + pos) * dim + pos,
+        (face * dim + pos) * dim + rev_pos,
+        (face * dim + rev_pos) * dim + rev_pos,
+        (face * dim + rev_pos) * dim + pos,
+    ];
+    for i in 0..3 {
+        if cur_state[target_idx[i]] == sol_state[target_idx[0]] {
+            return i;
+        }
+    }
+    3
+}
+
+#[allow(dead_code)]
+pub fn sequence_moves_four_corner(dim: usize, pos: usize) -> Vec<Vec<String>> {
     let rev_pos = dim - 1 - pos;
     let f_rev_minus = format!("-f{}", rev_pos);
     let f_rev_plus = format!("f{}", rev_pos);
@@ -2414,7 +2587,8 @@ fn sequence_moves_four_corner(dim: usize, pos: usize) -> Vec<Vec<String>> {
     res
 }
 
-fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> {
+#[allow(dead_code)]
+pub fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> {
     assert!(y != x);
     let rev_x = dim - 1 - x;
     let rev_y = dim - 1 - y;
@@ -2437,33 +2611,26 @@ fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> 
         Vec::from([d0_p.clone()]),
         Vec::from([u0_p.clone()]),
     ]);
-    fn rev(s: &String) -> String {
-        if s.starts_with("-") {
-            s[1..].to_string()
-        } else {
-            format!("-{}", s)
-        }
-    }
     for plus in &[r0_p.clone(), d0_p.clone(), l0_p.clone(), u0_p.clone()] {
         for (first, second, rot) in &[
             (f_rev_y_minus.clone(), f_rev_x_minus.clone(), plus.clone()),
-            (f_rev_y_minus.clone(), f_x_minus.clone(), rev(plus)),
+            (f_rev_y_minus.clone(), f_x_minus.clone(), rev_move(plus)),
             (f_y_plus.clone(), f_x_plus.clone(), plus.clone()),
-            (f_y_plus.clone(), f_rev_x_plus.clone(), rev(plus)),
-            (f_y_minus.clone(), f_rev_x_minus.clone(), rev(plus)),
+            (f_y_plus.clone(), f_rev_x_plus.clone(), rev_move(plus)),
+            (f_y_minus.clone(), f_rev_x_minus.clone(), rev_move(plus)),
             (f_y_minus.clone(), f_x_minus.clone(), plus.clone()),
-            (f_rev_y_plus.clone(), f_x_plus.clone(), rev(plus)),
+            (f_rev_y_plus.clone(), f_x_plus.clone(), rev_move(plus)),
             (f_rev_y_plus.clone(), f_rev_x_plus.clone(), plus.clone()),
         ] {
             res_plus.push(Vec::from([
                 first.clone(),
                 rot.clone(),
                 second.clone(),
-                rev(rot),
-                rev(first),
+                rev_move(rot),
+                rev_move(first),
                 rot.clone(),
-                rev(second),
-                rev(rot),
+                rev_move(second),
+                rev_move(rot),
             ]));
         }
     }
@@ -2478,8 +2645,8 @@ fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> 
             (
                 f_rev_y_minus.clone(),
                 f_x_minus.clone(),
-                rev(plus0),
-                rev(plus1),
+                rev_move(plus0),
+                rev_move(plus1),
             ),
             (
                 f_y_plus.clone(),
@@ -2490,14 +2657,14 @@ fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> 
             (
                 f_y_plus.clone(),
                 f_rev_x_plus.clone(),
-                rev(plus0),
-                rev(plus1),
+                rev_move(plus0),
+                rev_move(plus1),
             ),
             (
                 f_y_minus.clone(),
                 f_rev_x_minus.clone(),
-                rev(plus0),
-                rev(plus1),
+                rev_move(plus0),
+                rev_move(plus1),
             ),
             (
                 f_y_minus.clone(),
@@ -2508,8 +2675,8 @@ fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> 
             (
                 f_rev_y_plus.clone(),
                 f_x_plus.clone(),
-                rev(plus0),
-                rev(plus1),
+                rev_move(plus0),
+                rev_move(plus1),
             ),
             (
                 f_rev_y_plus.clone(),
@@ -2523,12 +2690,12 @@ fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> 
                 rot0.clone(),
                 rot1.clone(),
                 second.clone(),
-                rev(rot0),
-                rev(rot1),
-                rev(first),
+                rev_move(rot0),
+                rev_move(rot1),
+                rev_move(first),
                 rot0.clone(),
                 rot1.clone(),
-                rev(second),
+                rev_move(second),
             ]));
         }
     }
@@ -2536,8 +2703,8 @@ fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> 
         for (first, second, rot) in &[
             (f_rev_y_minus.clone(), f_rev_x_minus.clone(), plus.clone()),
             (f_y_plus.clone(), f_x_plus.clone(), plus.clone()),
-            (f_y_minus.clone(), f_rev_x_minus.clone(), rev(plus)),
-            (f_rev_y_plus.clone(), f_x_plus.clone(), rev(plus)),
+            (f_y_minus.clone(), f_rev_x_minus.clone(), rev_move(plus)),
+            (f_rev_y_plus.clone(), f_x_plus.clone(), rev_move(plus)),
         ] {
             res_plus.push(Vec::from([
                 first.clone(),
@@ -2545,12 +2712,12 @@ fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> 
                 rot.clone(),
                 second.clone(),
                 second.clone(),
-                rev(rot),
-                rev(first),
-                rev(first),
+                rev_move(rot),
+                rev_move(first),
+                rev_move(first),
                 rot.clone(),
-                rev(second),
-                rev(second),
+                rev_move(second),
+                rev_move(second),
             ]));
         }
     }
@@ -2568,21 +2735,21 @@ fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> 
                 rot1.clone(),
                 second.clone(),
                 second.clone(),
-                rev(rot0),
-                rev(rot1),
-                rev(first),
-                rev(first),
+                rev_move(rot0),
+                rev_move(rot1),
+                rev_move(first),
+                rev_move(first),
                 rot0.clone(),
                 rot1.clone(),
-                rev(second),
-                rev(second),
+                rev_move(second),
+                rev_move(second),
             ]));
         }
     }
     let mut res = Vec::new();
     for r in res_plus.iter() {
         res.push(r.clone());
-        res.push(r.iter().map(|s| rev(s)).rev().collect());
+        res.push(r.iter().map(|s| rev_move(s)).rev().collect());
     }
     res
 }
@@ -2769,155 +2936,155 @@ fn bfs_four_corner_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
     // generated by `generate_four_corner_move_for_bfs`
     let actions = [
         (
-            Vec::from([0, 1, 2, 3, 5, 7, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
+            Vec::from([0, 1, 2, 3, 5, 6, 7, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
             1,
         ),
         (
-            Vec::from([0, 1, 2, 3, 6, 4, 7, 5, 8, 9, 10, 11, 12, 13, 14, 15]),
+            Vec::from([0, 1, 2, 3, 7, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
             1,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 8, 10, 12, 13, 14, 15]),
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8, 12, 13, 14, 15]),
             1,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 10, 8, 11, 9, 12, 13, 14, 15]),
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15]),
             1,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 12, 14]),
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12]),
             1,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 12, 15, 13]),
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14]),
             1,
         ),
         (
-            Vec::from([1, 3, 0, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            Vec::from([1, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
             1,
         ),
         (
-            Vec::from([2, 0, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            Vec::from([3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
             1,
         ),
         (
-            Vec::from([0, 1, 2, 3, 6, 5, 14, 7, 8, 9, 10, 11, 12, 13, 15, 4]),
+            Vec::from([0, 1, 2, 3, 7, 5, 6, 15, 8, 9, 10, 11, 12, 13, 4, 14]),
             3,
         ),
         (
-            Vec::from([0, 1, 2, 3, 14, 5, 15, 7, 8, 9, 10, 11, 12, 13, 4, 6]),
+            Vec::from([0, 1, 2, 3, 15, 5, 6, 14, 8, 9, 10, 11, 12, 13, 7, 4]),
             4,
         ),
         (
-            Vec::from([0, 1, 2, 3, 15, 5, 4, 7, 8, 9, 10, 11, 12, 13, 6, 14]),
+            Vec::from([0, 1, 2, 3, 14, 5, 6, 4, 8, 9, 10, 11, 12, 13, 15, 7]),
             3,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 13, 6, 5, 8, 9, 10, 11, 7, 12, 14, 15]),
+            Vec::from([0, 1, 2, 3, 4, 13, 5, 7, 8, 9, 10, 11, 6, 12, 14, 15]),
             3,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 12, 6, 13, 8, 9, 10, 11, 5, 7, 14, 15]),
+            Vec::from([0, 1, 2, 3, 4, 12, 13, 7, 8, 9, 10, 11, 5, 6, 14, 15]),
             4,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 7, 6, 12, 8, 9, 10, 11, 13, 5, 14, 15]),
+            Vec::from([0, 1, 2, 3, 4, 6, 12, 7, 8, 9, 10, 11, 13, 5, 14, 15]),
             3,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 10, 9, 13, 11, 8, 12, 14, 15]),
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 9, 10, 13, 8, 12, 14, 15]),
             3,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 13, 9, 12, 11, 10, 8, 14, 15]),
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 13, 9, 10, 12, 11, 8, 14, 15]),
             4,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 12, 9, 8, 11, 13, 10, 14, 15]),
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 12, 9, 10, 8, 13, 11, 14, 15]),
             3,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 10, 9, 12, 13, 15, 11]),
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 15, 9, 11, 12, 13, 10, 14]),
             3,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 15, 10, 14, 12, 13, 11, 9]),
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 15, 11, 12, 13, 9, 10]),
             4,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 10, 15, 12, 13, 9, 14]),
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 14, 11, 12, 13, 15, 9]),
             3,
         ),
         (
-            Vec::from([11, 0, 2, 3, 4, 5, 6, 7, 8, 1, 10, 9, 12, 13, 14, 15]),
+            Vec::from([10, 0, 2, 3, 4, 5, 6, 7, 8, 1, 9, 11, 12, 13, 14, 15]),
             3,
         ),
         (
-            Vec::from([9, 11, 2, 3, 4, 5, 6, 7, 8, 0, 10, 1, 12, 13, 14, 15]),
+            Vec::from([9, 10, 2, 3, 4, 5, 6, 7, 8, 0, 1, 11, 12, 13, 14, 15]),
             4,
         ),
         (
-            Vec::from([1, 9, 2, 3, 4, 5, 6, 7, 8, 11, 10, 0, 12, 13, 14, 15]),
+            Vec::from([1, 9, 2, 3, 4, 5, 6, 7, 8, 10, 0, 11, 12, 13, 14, 15]),
             3,
         ),
         (
-            Vec::from([0, 1, 3, 8, 4, 5, 6, 7, 10, 9, 2, 11, 12, 13, 14, 15]),
+            Vec::from([0, 1, 8, 2, 4, 5, 6, 7, 11, 9, 10, 3, 12, 13, 14, 15]),
             3,
         ),
         (
-            Vec::from([0, 1, 8, 10, 4, 5, 6, 7, 2, 9, 3, 11, 12, 13, 14, 15]),
+            Vec::from([0, 1, 11, 8, 4, 5, 6, 7, 3, 9, 10, 2, 12, 13, 14, 15]),
             4,
         ),
         (
-            Vec::from([0, 1, 10, 2, 4, 5, 6, 7, 3, 9, 8, 11, 12, 13, 14, 15]),
+            Vec::from([0, 1, 3, 11, 4, 5, 6, 7, 2, 9, 10, 8, 12, 13, 14, 15]),
             3,
         ),
         (
-            Vec::from([0, 1, 3, 7, 4, 2, 6, 5, 8, 9, 10, 11, 12, 13, 14, 15]),
+            Vec::from([0, 1, 6, 2, 4, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
             3,
         ),
         (
-            Vec::from([0, 1, 7, 5, 4, 3, 6, 2, 8, 9, 10, 11, 12, 13, 14, 15]),
+            Vec::from([0, 1, 5, 6, 4, 2, 3, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
             4,
         ),
         (
-            Vec::from([0, 1, 5, 2, 4, 7, 6, 3, 8, 9, 10, 11, 12, 13, 14, 15]),
+            Vec::from([0, 1, 3, 5, 4, 6, 2, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
             3,
         ),
         (
-            Vec::from([4, 0, 2, 3, 6, 5, 1, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            Vec::from([4, 0, 2, 3, 7, 5, 6, 1, 8, 9, 10, 11, 12, 13, 14, 15]),
             3,
         ),
         (
-            Vec::from([6, 4, 2, 3, 1, 5, 0, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            Vec::from([7, 4, 2, 3, 1, 5, 6, 0, 8, 9, 10, 11, 12, 13, 14, 15]),
             4,
         ),
         (
-            Vec::from([1, 6, 2, 3, 0, 5, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            Vec::from([1, 7, 2, 3, 0, 5, 6, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
             3,
         ),
         (
-            Vec::from([0, 1, 2, 3, 6, 5, 8, 7, 10, 9, 4, 11, 12, 13, 14, 15]),
+            Vec::from([0, 1, 2, 3, 7, 5, 6, 8, 11, 9, 10, 4, 12, 13, 14, 15]),
             5,
         ),
         (
-            Vec::from([0, 1, 2, 3, 8, 5, 10, 7, 4, 9, 6, 11, 12, 13, 14, 15]),
+            Vec::from([0, 1, 2, 3, 8, 5, 6, 11, 4, 9, 10, 7, 12, 13, 14, 15]),
             6,
         ),
         (
-            Vec::from([0, 1, 2, 3, 10, 5, 4, 7, 6, 9, 8, 11, 12, 13, 14, 15]),
+            Vec::from([0, 1, 2, 3, 11, 5, 6, 4, 7, 9, 10, 8, 12, 13, 14, 15]),
             5,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 11, 6, 5, 8, 7, 10, 9, 12, 13, 14, 15]),
+            Vec::from([0, 1, 2, 3, 4, 10, 5, 7, 8, 6, 9, 11, 12, 13, 14, 15]),
             5,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 9, 6, 11, 8, 5, 10, 7, 12, 13, 14, 15]),
+            Vec::from([0, 1, 2, 3, 4, 9, 10, 7, 8, 5, 6, 11, 12, 13, 14, 15]),
             6,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 7, 6, 9, 8, 11, 10, 5, 12, 13, 14, 15]),
+            Vec::from([0, 1, 2, 3, 4, 6, 9, 7, 8, 10, 5, 11, 12, 13, 14, 15]),
             5,
         ),
         (
@@ -2933,7 +3100,7 @@ fn bfs_four_corner_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
             5,
         ),
         (
-            Vec::from([0, 1, 3, 14, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 2]),
+            Vec::from([0, 1, 15, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 3, 14]),
             5,
         ),
         (
@@ -2941,7 +3108,7 @@ fn bfs_four_corner_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
             6,
         ),
         (
-            Vec::from([0, 1, 15, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 3, 14]),
+            Vec::from([0, 1, 3, 14, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 2]),
             5,
         ),
     ];
@@ -3011,15 +3178,11 @@ fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
     // generated by `generate_four_edge_move_for_bfs`
     let actions = [
         (
-            Vec::from([0, 1, 2, 3, 5, 6, 7, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
-            1,
-        ),
-        (
             Vec::from([0, 1, 2, 3, 7, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
             1,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8, 12, 13, 14, 15]),
+            Vec::from([0, 1, 2, 3, 5, 6, 7, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
             1,
         ),
         (
@@ -3027,7 +3190,7 @@ fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
             1,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12]),
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8, 12, 13, 14, 15]),
             1,
         ),
         (
@@ -3035,7 +3198,7 @@ fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
             1,
         ),
         (
-            Vec::from([1, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12]),
             1,
         ),
         (
@@ -3043,404 +3206,392 @@ fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
             1,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 14, 8, 9, 10, 11, 12, 7, 13, 15]),
-            8,
+            Vec::from([1, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            1,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 13, 8, 9, 10, 11, 12, 14, 7, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 7, 4, 14, 6, 8, 9, 10, 11, 12, 13, 15, 5]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 14, 8, 9, 10, 11, 12, 13, 15, 7]),
-            8,
+            Vec::from([0, 1, 2, 3, 5, 15, 7, 4, 8, 9, 10, 11, 12, 13, 6, 14]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 15, 8, 9, 10, 11, 12, 13, 7, 14]),
-            8,
+            Vec::from([0, 1, 2, 3, 14, 6, 7, 4, 8, 9, 10, 11, 12, 5, 13, 15]),
+            7,
         ),
         (
-            Vec::from([0, 5, 1, 3, 4, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 7, 13, 5, 6, 8, 9, 10, 11, 12, 14, 4, 15]),
+            7,
         ),
         (
-            Vec::from([0, 2, 5, 3, 4, 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 3, 7, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 3, 5, 4, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 4, 2, 5, 6, 7, 3, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 5, 2, 4, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([0, 7, 1, 3, 5, 6, 2, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 12, 6, 7, 8, 9, 10, 11, 13, 5, 14, 15]),
-            8,
+            Vec::from([0, 2, 6, 3, 7, 4, 5, 1, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 13, 6, 7, 8, 9, 10, 11, 5, 12, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 5, 6, 12, 4, 8, 9, 10, 11, 15, 13, 14, 7]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 12, 6, 7, 8, 9, 10, 11, 15, 13, 14, 5]),
-            8,
+            Vec::from([0, 1, 2, 3, 7, 4, 5, 15, 8, 9, 10, 11, 6, 13, 14, 12]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 15, 6, 7, 8, 9, 10, 11, 5, 13, 14, 12]),
-            8,
+            Vec::from([0, 1, 2, 3, 12, 4, 5, 6, 8, 9, 10, 11, 13, 7, 14, 15]),
+            7,
         ),
         (
-            Vec::from([1, 7, 2, 3, 4, 5, 6, 0, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 5, 6, 7, 13, 8, 9, 10, 11, 4, 12, 14, 15]),
+            7,
         ),
         (
-            Vec::from([7, 0, 2, 3, 4, 5, 6, 1, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([3, 1, 2, 5, 0, 6, 7, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([3, 1, 2, 7, 4, 5, 6, 0, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([4, 1, 2, 0, 7, 3, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([7, 1, 2, 0, 4, 5, 6, 3, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([1, 5, 2, 3, 7, 4, 0, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 14, 8, 10, 11, 12, 13, 9, 15]),
-            8,
+            Vec::from([6, 0, 2, 3, 5, 1, 7, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 14, 10, 11, 12, 13, 8, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 14, 9, 10, 8, 15, 12, 13, 11]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 14, 11, 12, 13, 9, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 9, 10, 15, 13, 14, 8, 12]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 9, 11, 12, 13, 10, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 10, 13, 11, 15, 12]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 12, 4, 6, 7, 8, 9, 10, 11, 5, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 12, 10, 14]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 5, 12, 6, 7, 8, 9, 10, 11, 4, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 12, 5, 6, 4, 8, 9, 10, 11, 15, 7, 13, 14]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 6, 12, 7, 8, 9, 10, 11, 5, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 7, 5, 6, 13, 8, 9, 10, 11, 4, 14, 15, 12]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 12, 5, 7, 8, 9, 10, 11, 6, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 12, 6, 8, 9, 10, 11, 13, 14, 15, 7]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 12, 9, 10, 8, 11, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 7, 15, 8, 9, 10, 11, 6, 12, 13, 14]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 9, 10, 12, 8, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 12, 8, 10, 11, 13, 14, 15, 9]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 10, 11, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 15, 10, 11, 8, 12, 13, 14]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 10, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 11, 15, 9, 13, 14]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 14, 5, 6, 4, 8, 9, 10, 11, 12, 13, 7, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 13, 9, 11, 10, 14, 15, 12]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 7, 5, 6, 14, 8, 9, 10, 11, 12, 13, 4, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 14, 4, 6, 7, 8, 9, 10, 11, 13, 5, 15, 12]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 14, 6, 8, 9, 10, 11, 12, 13, 7, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 5, 13, 6, 7, 8, 9, 10, 11, 15, 12, 4, 14]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 7, 14, 8, 9, 10, 11, 12, 13, 6, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 6, 14, 7, 8, 9, 10, 11, 15, 12, 13, 5]),
+            7,
         ),
         (
-            Vec::from([3, 1, 2, 9, 4, 5, 6, 7, 8, 0, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 15, 5, 7, 8, 9, 10, 11, 13, 14, 6, 12]),
+            7,
         ),
         (
-            Vec::from([9, 1, 2, 0, 4, 5, 6, 7, 8, 3, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([1, 11, 2, 3, 4, 5, 6, 7, 0, 8, 9, 10, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([1, 9, 2, 3, 4, 5, 6, 7, 8, 0, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([8, 0, 2, 3, 4, 5, 6, 7, 9, 10, 11, 1, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([9, 0, 2, 3, 4, 5, 6, 7, 8, 1, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([3, 1, 2, 11, 4, 5, 6, 7, 9, 10, 0, 8, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 13, 14, 11]),
-            8,
+            Vec::from([10, 1, 2, 0, 4, 5, 6, 7, 11, 8, 9, 3, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 11, 13, 14, 12]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 12, 10, 13, 9, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 11, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 13, 11, 8, 10, 12, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 11, 12, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 12, 10, 11, 8, 15, 13, 14, 9]),
+            7,
         ),
         (
-            Vec::from([0, 1, 3, 11, 4, 5, 6, 7, 8, 9, 10, 2, 12, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 15, 9, 10, 8, 13, 14, 12]),
+            7,
         ),
         (
-            Vec::from([0, 1, 11, 2, 4, 5, 6, 7, 8, 9, 10, 3, 12, 13, 14, 15]),
-            8,
+            Vec::from([0, 9, 1, 3, 4, 5, 6, 7, 2, 10, 11, 8, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 11, 1, 3, 4, 5, 6, 7, 8, 9, 10, 2, 12, 13, 14, 15]),
-            8,
+            Vec::from([0, 2, 8, 3, 4, 5, 6, 7, 11, 1, 9, 10, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 2, 11, 3, 4, 5, 6, 7, 8, 9, 10, 1, 12, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 3, 9, 4, 5, 6, 7, 11, 8, 2, 10, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 10, 11, 12, 13, 15, 9]),
-            8,
+            Vec::from([0, 1, 10, 2, 4, 5, 6, 7, 9, 3, 11, 8, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 15, 10, 11, 12, 13, 9, 14]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 14, 8, 12, 11, 13, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 10, 11, 12, 9, 13, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 13, 12, 14, 10, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 13, 10, 11, 12, 14, 9, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 14, 8, 9, 10, 12, 13, 15, 11]),
+            7,
         ),
         (
-            Vec::from([7, 1, 2, 3, 4, 5, 0, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 15, 12, 13, 8, 14]),
+            7,
         ),
         (
-            Vec::from([6, 1, 2, 3, 4, 5, 7, 0, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([3, 5, 1, 2, 4, 6, 0, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([7, 1, 2, 3, 0, 5, 6, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([6, 2, 3, 0, 4, 1, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([4, 1, 2, 3, 7, 5, 6, 0, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([1, 2, 3, 5, 0, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 11, 3, 4, 5, 6, 7, 8, 9, 2, 10, 12, 13, 14, 15]),
-            8,
+            Vec::from([4, 0, 1, 2, 5, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 10, 3, 4, 5, 6, 7, 8, 9, 11, 2, 12, 13, 14, 15]),
-            8,
+            Vec::from([3, 0, 1, 9, 4, 5, 6, 7, 8, 10, 2, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 11, 3, 4, 5, 6, 7, 2, 9, 10, 8, 12, 13, 14, 15]),
-            8,
+            Vec::from([1, 2, 10, 0, 4, 5, 6, 7, 8, 3, 9, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 8, 3, 4, 5, 6, 7, 11, 9, 10, 2, 12, 13, 14, 15]),
-            8,
+            Vec::from([1, 9, 3, 0, 4, 5, 6, 7, 2, 8, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 5, 3, 4, 6, 2, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([3, 0, 8, 2, 4, 5, 6, 7, 9, 1, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 6, 3, 4, 2, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([1, 7, 3, 0, 4, 5, 2, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 5, 3, 2, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([3, 0, 6, 2, 4, 5, 7, 1, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([0, 1, 4, 3, 5, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([3, 0, 1, 7, 2, 5, 6, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([9, 1, 2, 3, 4, 5, 6, 7, 8, 10, 0, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([1, 2, 4, 0, 7, 5, 6, 3, 8, 9, 10, 11, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([10, 1, 2, 3, 4, 5, 6, 7, 8, 0, 9, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([1, 2, 3, 11, 4, 5, 6, 7, 8, 9, 0, 10, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([9, 1, 2, 3, 4, 5, 6, 7, 0, 8, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([10, 0, 1, 2, 4, 5, 6, 7, 8, 9, 11, 3, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([8, 1, 2, 3, 4, 5, 6, 7, 9, 0, 10, 11, 12, 13, 14, 15]),
-            8,
+            Vec::from([3, 11, 1, 2, 4, 5, 6, 7, 0, 9, 10, 8, 12, 13, 14, 15]),
+            7,
         ),
         (
-            Vec::from([3, 1, 2, 9, 5, 6, 14, 4, 0, 10, 11, 8, 12, 7, 13, 15]),
+            Vec::from([8, 2, 3, 0, 4, 5, 6, 7, 11, 9, 10, 1, 12, 13, 14, 15]),
+            7,
+        ),
+        (
+            Vec::from([1, 11, 2, 3, 7, 4, 14, 6, 0, 8, 9, 10, 12, 13, 15, 5]),
             10,
         ),
         (
-            Vec::from([8, 1, 2, 0, 7, 4, 5, 13, 11, 3, 9, 10, 12, 14, 6, 15]),
+            Vec::from([8, 0, 2, 3, 5, 15, 7, 4, 9, 10, 11, 1, 12, 13, 6, 14]),
             10,
         ),
         (
-            Vec::from([1, 9, 2, 3, 14, 4, 5, 6, 11, 8, 0, 10, 12, 13, 15, 7]),
+            Vec::from([3, 1, 2, 11, 14, 6, 7, 4, 9, 10, 0, 8, 12, 5, 13, 15]),
             10,
         ),
         (
-            Vec::from([10, 0, 2, 3, 5, 6, 7, 15, 9, 1, 11, 8, 12, 13, 4, 14]),
+            Vec::from([10, 1, 2, 0, 7, 13, 5, 6, 11, 8, 9, 3, 12, 14, 4, 15]),
             10,
         ),
         (
-            Vec::from([0, 5, 1, 3, 2, 6, 7, 4, 9, 10, 12, 8, 15, 13, 14, 11]),
+            Vec::from([0, 1, 3, 7, 2, 4, 5, 6, 11, 8, 12, 10, 13, 9, 14, 15]),
             10,
         ),
         (
-            Vec::from([0, 2, 4, 3, 7, 1, 5, 6, 11, 8, 9, 15, 10, 13, 14, 12]),
+            Vec::from([0, 1, 4, 2, 5, 6, 7, 3, 9, 13, 11, 8, 10, 12, 14, 15]),
             10,
         ),
         (
-            Vec::from([0, 1, 3, 5, 7, 4, 2, 6, 12, 8, 9, 10, 13, 11, 14, 15]),
+            Vec::from([0, 7, 1, 3, 5, 6, 2, 4, 12, 10, 11, 8, 15, 13, 14, 9]),
             10,
         ),
         (
-            Vec::from([0, 1, 6, 2, 5, 3, 7, 4, 9, 10, 11, 13, 8, 12, 14, 15]),
+            Vec::from([0, 2, 6, 3, 7, 4, 5, 1, 11, 15, 9, 10, 8, 13, 14, 12]),
             10,
         ),
         (
-            Vec::from([0, 1, 3, 11, 7, 4, 12, 6, 2, 8, 9, 10, 13, 5, 14, 15]),
+            Vec::from([0, 9, 1, 3, 5, 6, 12, 4, 2, 10, 11, 8, 15, 13, 14, 7]),
             10,
         ),
         (
-            Vec::from([0, 1, 8, 2, 5, 13, 7, 4, 9, 10, 11, 3, 6, 12, 14, 15]),
+            Vec::from([0, 2, 8, 3, 7, 4, 5, 15, 11, 1, 9, 10, 6, 13, 14, 12]),
             10,
         ),
         (
-            Vec::from([0, 11, 1, 3, 12, 6, 7, 4, 9, 10, 2, 8, 15, 13, 14, 5]),
+            Vec::from([0, 1, 3, 9, 12, 4, 5, 6, 11, 8, 2, 10, 13, 7, 14, 15]),
             10,
         ),
         (
-            Vec::from([0, 2, 10, 3, 7, 15, 5, 6, 11, 8, 9, 1, 4, 13, 14, 12]),
+            Vec::from([0, 1, 10, 2, 5, 6, 7, 13, 9, 3, 11, 8, 4, 12, 14, 15]),
             10,
         ),
         (
-            Vec::from([1, 7, 2, 3, 0, 4, 5, 6, 11, 8, 14, 10, 12, 13, 15, 9]),
+            Vec::from([3, 1, 2, 5, 0, 6, 7, 4, 9, 10, 14, 8, 12, 11, 13, 15]),
             10,
         ),
         (
-            Vec::from([4, 0, 2, 3, 5, 6, 7, 1, 9, 15, 11, 8, 12, 13, 10, 14]),
+            Vec::from([4, 1, 2, 0, 7, 3, 5, 6, 11, 8, 9, 13, 12, 14, 10, 15]),
             10,
         ),
         (
-            Vec::from([3, 1, 2, 7, 5, 6, 0, 4, 14, 10, 11, 8, 12, 9, 13, 15]),
+            Vec::from([1, 5, 2, 3, 7, 4, 0, 6, 14, 8, 9, 10, 12, 13, 15, 11]),
             10,
         ),
         (
-            Vec::from([6, 1, 2, 0, 7, 4, 5, 3, 11, 13, 9, 10, 12, 14, 8, 15]),
+            Vec::from([6, 0, 2, 3, 5, 1, 7, 4, 9, 10, 11, 15, 12, 13, 8, 14]),
             10,
         ),
         (
-            Vec::from([1, 2, 3, 7, 4, 5, 0, 6, 14, 8, 10, 11, 13, 9, 15, 12]),
+            Vec::from([3, 5, 1, 2, 4, 6, 0, 7, 14, 9, 10, 8, 15, 12, 13, 11]),
             10,
         ),
         (
-            Vec::from([6, 0, 1, 2, 4, 5, 7, 3, 9, 13, 10, 11, 15, 12, 8, 14]),
+            Vec::from([6, 2, 3, 0, 4, 1, 5, 7, 11, 9, 10, 15, 13, 14, 8, 12]),
             10,
         ),
         (
-            Vec::from([3, 7, 1, 2, 0, 5, 6, 4, 8, 10, 14, 11, 15, 12, 13, 9]),
+            Vec::from([1, 2, 3, 5, 0, 4, 6, 7, 8, 9, 14, 10, 13, 11, 15, 12]),
             10,
         ),
         (
-            Vec::from([4, 2, 3, 0, 7, 5, 6, 1, 8, 15, 9, 11, 13, 14, 10, 12]),
+            Vec::from([4, 0, 1, 2, 5, 3, 6, 7, 8, 9, 11, 13, 15, 12, 10, 14]),
             10,
         ),
         (
-            Vec::from([1, 11, 3, 0, 12, 4, 6, 7, 8, 9, 2, 10, 13, 14, 15, 5]),
+            Vec::from([3, 0, 1, 9, 12, 5, 6, 4, 8, 10, 2, 11, 15, 7, 13, 14]),
             10,
         ),
         (
-            Vec::from([3, 0, 10, 2, 5, 15, 6, 7, 8, 9, 11, 1, 4, 12, 13, 14]),
+            Vec::from([1, 2, 10, 0, 7, 5, 6, 13, 8, 3, 9, 11, 4, 14, 15, 12]),
             10,
         ),
         (
-            Vec::from([3, 0, 1, 11, 4, 6, 12, 7, 2, 9, 10, 8, 15, 5, 13, 14]),
+            Vec::from([1, 9, 3, 0, 4, 5, 12, 6, 2, 8, 10, 11, 13, 14, 15, 7]),
             10,
         ),
         (
-            Vec::from([1, 2, 8, 0, 4, 13, 5, 7, 11, 9, 10, 3, 6, 14, 15, 12]),
+            Vec::from([3, 0, 8, 2, 4, 5, 7, 15, 9, 1, 10, 11, 6, 12, 13, 14]),
             10,
         ),
         (
-            Vec::from([3, 0, 1, 5, 4, 6, 2, 7, 12, 9, 10, 8, 15, 11, 13, 14]),
+            Vec::from([1, 7, 3, 0, 4, 5, 2, 6, 12, 8, 10, 11, 13, 14, 15, 9]),
             10,
         ),
         (
-            Vec::from([1, 2, 6, 0, 4, 3, 5, 7, 11, 9, 10, 13, 8, 14, 15, 12]),
+            Vec::from([3, 0, 6, 2, 4, 5, 7, 1, 9, 15, 10, 11, 8, 12, 13, 14]),
             10,
         ),
         (
-            Vec::from([1, 5, 3, 0, 2, 4, 6, 7, 8, 9, 12, 10, 13, 14, 15, 11]),
+            Vec::from([3, 0, 1, 7, 2, 5, 6, 4, 8, 10, 12, 11, 15, 9, 13, 14]),
             10,
         ),
         (
-            Vec::from([3, 0, 4, 2, 5, 1, 6, 7, 8, 9, 11, 15, 10, 12, 13, 14]),
+            Vec::from([1, 2, 4, 0, 7, 5, 6, 3, 8, 13, 9, 11, 10, 14, 15, 12]),
             10,
         ),
         (
-            Vec::from([3, 9, 1, 2, 14, 5, 6, 4, 8, 10, 0, 11, 15, 12, 13, 7]),
+            Vec::from([1, 2, 3, 11, 14, 4, 6, 7, 8, 9, 0, 10, 13, 5, 15, 12]),
             10,
         ),
         (
-            Vec::from([10, 2, 3, 0, 7, 5, 6, 15, 8, 1, 9, 11, 13, 14, 4, 12]),
+            Vec::from([10, 0, 1, 2, 5, 13, 6, 7, 8, 9, 11, 3, 15, 12, 4, 14]),
             10,
         ),
         (
-            Vec::from([1, 2, 3, 9, 4, 5, 14, 6, 0, 8, 10, 11, 13, 7, 15, 12]),
+            Vec::from([3, 11, 1, 2, 4, 6, 14, 7, 0, 9, 10, 8, 15, 12, 13, 5]),
             10,
         ),
         (
-            Vec::from([8, 0, 1, 2, 4, 5, 7, 13, 9, 3, 10, 11, 15, 12, 6, 14]),
+            Vec::from([8, 2, 3, 0, 4, 15, 5, 7, 11, 9, 10, 1, 13, 14, 6, 12]),
             10,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 5, 6, 9, 4, 7, 8, 10, 11, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 4, 5, 8, 9, 6, 10, 11, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 11, 6, 7, 4, 8, 9, 5, 10, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 10, 5, 6, 8, 9, 11, 4, 12, 13, 14, 15]),
-            11,
         ),
         (
             Vec::from([0, 1, 2, 3, 7, 4, 11, 6, 5, 9, 10, 8, 12, 13, 14, 15]),
@@ -3459,27 +3610,19 @@ fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
             11,
         ),
         (
-            Vec::from([3, 1, 2, 14, 4, 5, 6, 7, 8, 9, 10, 11, 13, 0, 15, 12]),
+            Vec::from([0, 1, 2, 3, 5, 6, 9, 4, 7, 8, 10, 11, 12, 13, 14, 15]),
             11,
         ),
         (
-            Vec::from([13, 1, 2, 0, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 3, 14]),
+            Vec::from([0, 1, 2, 3, 7, 4, 5, 8, 9, 6, 10, 11, 12, 13, 14, 15]),
             11,
         ),
         (
-            Vec::from([0, 12, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 2]),
+            Vec::from([0, 1, 2, 3, 11, 6, 7, 4, 8, 9, 5, 10, 12, 13, 14, 15]),
             11,
         ),
         (
-            Vec::from([0, 2, 15, 3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 12, 13, 14]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 3, 12, 4, 5, 6, 7, 8, 9, 10, 11, 15, 2, 13, 14]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 3, 14, 15, 12]),
+            Vec::from([0, 1, 2, 3, 7, 10, 5, 6, 8, 9, 11, 4, 12, 13, 14, 15]),
             11,
         ),
         (
@@ -3491,19 +3634,27 @@ fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
             11,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 9, 6, 7, 10, 11, 8, 12, 13, 14, 15]),
+            Vec::from([0, 1, 3, 12, 4, 5, 6, 7, 8, 9, 10, 11, 15, 2, 13, 14]),
             11,
         ),
         (
-            Vec::from([0, 1, 2, 3, 4, 5, 7, 8, 11, 6, 9, 10, 12, 13, 14, 15]),
+            Vec::from([0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 3, 14, 15, 12]),
             11,
         ),
         (
-            Vec::from([0, 1, 2, 3, 11, 4, 6, 7, 9, 10, 5, 8, 12, 13, 14, 15]),
+            Vec::from([0, 12, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 2]),
             11,
         ),
         (
-            Vec::from([0, 1, 2, 3, 5, 10, 6, 7, 11, 8, 9, 4, 12, 13, 14, 15]),
+            Vec::from([0, 2, 15, 3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 12, 13, 14]),
+            11,
+        ),
+        (
+            Vec::from([3, 1, 2, 14, 4, 5, 6, 7, 8, 9, 10, 11, 13, 0, 15, 12]),
+            11,
+        ),
+        (
+            Vec::from([13, 1, 2, 0, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 3, 14]),
             11,
         ),
         (
@@ -3523,27 +3674,19 @@ fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
             11,
         ),
         (
-            Vec::from([1, 2, 3, 14, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 13, 15]),
+            Vec::from([0, 1, 2, 3, 4, 5, 9, 6, 7, 10, 11, 8, 12, 13, 14, 15]),
             11,
         ),
         (
-            Vec::from([13, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 3, 15]),
+            Vec::from([0, 1, 2, 3, 4, 5, 7, 8, 11, 6, 9, 10, 12, 13, 14, 15]),
             11,
         ),
         (
-            Vec::from([1, 12, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 15, 13, 14, 2]),
+            Vec::from([0, 1, 2, 3, 11, 4, 6, 7, 9, 10, 5, 8, 12, 13, 14, 15]),
             11,
         ),
         (
-            Vec::from([3, 0, 15, 2, 4, 5, 6, 7, 8, 9, 10, 11, 1, 13, 14, 12]),
-            11,
-        ),
-        (
-            Vec::from([3, 0, 1, 12, 4, 5, 6, 7, 8, 9, 10, 11, 13, 2, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([1, 2, 13, 0, 4, 5, 6, 7, 8, 9, 10, 11, 3, 12, 14, 15]),
+            Vec::from([0, 1, 2, 3, 5, 10, 6, 7, 11, 8, 9, 4, 12, 13, 14, 15]),
             11,
         ),
         (
@@ -3555,19 +3698,43 @@ fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
             11,
         ),
         (
-            Vec::from([0, 1, 2, 3, 5, 6, 7, 4, 9, 10, 11, 8, 12, 13, 14, 15]),
-            14,
+            Vec::from([3, 0, 1, 12, 4, 5, 6, 7, 8, 9, 10, 11, 13, 2, 14, 15]),
+            11,
+        ),
+        (
+            Vec::from([1, 2, 13, 0, 4, 5, 6, 7, 8, 9, 10, 11, 3, 12, 14, 15]),
+            11,
+        ),
+        (
+            Vec::from([1, 12, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 15, 13, 14, 2]),
+            11,
+        ),
+        (
+            Vec::from([3, 0, 15, 2, 4, 5, 6, 7, 8, 9, 10, 11, 1, 13, 14, 12]),
+            11,
+        ),
+        (
+            Vec::from([1, 2, 3, 14, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 13, 15]),
+            11,
+        ),
+        (
+            Vec::from([13, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 3, 15]),
+            11,
         ),
         (
             Vec::from([0, 1, 2, 3, 7, 4, 5, 6, 11, 8, 9, 10, 12, 13, 14, 15]),
             14,
         ),
         (
-            Vec::from([1, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12]),
+            Vec::from([0, 1, 2, 3, 5, 6, 7, 4, 9, 10, 11, 8, 12, 13, 14, 15]),
             14,
         ),
         (
             Vec::from([3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14]),
+            14,
+        ),
+        (
+            Vec::from([1, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12]),
             14,
         ),
     ];

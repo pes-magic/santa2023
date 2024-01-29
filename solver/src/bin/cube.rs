@@ -536,10 +536,6 @@ fn solve_cube(
 
     let checker_cube = sol_state.starts_with("A;B;A;B;A;B;A;B;A");
     let distinct_cube = sol_state.starts_with("N0");
-    // Already have optimal solution for N=2
-    if dim <= 2 {
-        return None;
-    }
     if dim % 2 == 0 && checker_cube {
         return None;
     }
@@ -577,6 +573,12 @@ fn solve() {
             .unwrap()
             .parse::<usize>()
             .unwrap();
+
+        // Already have optimal solution for N=2
+        // N=3 is solved by DeepCubeA* solver
+        if dim <= 3 {
+            continue;
+        }
 
         let moves = &puzzle_info[&row.puzzle_type];
         if let Some(result) = solve_cube(&row, &moves, dim) {
