@@ -1,11 +1,11 @@
 // Reference
 // * https://github.com/merpig/RubiksProgram
 // * https://www.kaggle.com/code/seanbearden/solve-all-nxnxn-cubes-w-traditional-solution-state
+// * https://macozy.com/rubik/rce/rc_e.html
 // Dependencies
 // * https://github.com/dwalton76/rubiks-cube-NxNxN-solver
 
 use itertools::Itertools;
-use petgraph::visit::GraphBase;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap};
 
@@ -617,22 +617,22 @@ fn bfs_up_impl(
             }
         }
     }
-    let mut reachable = 0;
+    // let mut reachable = 0;
 
-    let mut max_cost = 0;
-    let mut max_idx = 0;
-    for (idx, c) in cost.iter().enumerate() {
-        if *c == std::i32::MAX {
-            continue;
-        }
-        reachable += 1;
-        if *c > max_cost {
-            max_cost = *c;
-            max_idx = idx;
-        }
-    }
-    println!("reachable: {}", reachable);
-    println!("max_cost: {} {:?}", max_cost, perm_list[max_idx / rot_num]);
+    // let mut max_cost = 0;
+    // let mut max_idx = 0;
+    // for (idx, c) in cost.iter().enumerate() {
+    //     if *c == std::i32::MAX {
+    //         continue;
+    //     }
+    //     reachable += 1;
+    //     if *c > max_cost {
+    //         max_cost = *c;
+    //         max_idx = idx;
+    //     }
+    // }
+    // println!("reachable: {}", reachable);
+    // println!("max_cost: {} {:?}", max_cost, perm_list[max_idx / rot_num]);
 
     (prev_state, prev_action, cost)
 }
@@ -697,22 +697,22 @@ fn bfs_left_impl(
             }
         }
     }
-    let mut reachable = 0;
+    // let mut reachable = 0;
 
-    let mut max_cost = 0;
-    let mut max_idx = 0;
-    for (idx, c) in cost.iter().enumerate() {
-        if *c == std::i32::MAX {
-            continue;
-        }
-        reachable += 1;
-        if *c > max_cost {
-            max_cost = *c;
-            max_idx = idx;
-        }
-    }
-    println!("reachable: {}", reachable);
-    println!("max_cost: {} {:?}", max_cost, perm_list[max_idx / rot_num]);
+    // let mut max_cost = 0;
+    // let mut max_idx = 0;
+    // for (idx, c) in cost.iter().enumerate() {
+    //     if *c == std::i32::MAX {
+    //         continue;
+    //     }
+    //     reachable += 1;
+    //     if *c > max_cost {
+    //         max_cost = *c;
+    //         max_idx = idx;
+    //     }
+    // }
+    // println!("reachable: {}", reachable);
+    // println!("max_cost: {} {:?}", max_cost, perm_list[max_idx / rot_num]);
 
     (prev_state, prev_action, cost)
 }
@@ -779,6 +779,7 @@ fn solve_up_first_corner(
     actions: &HashMap<String, Vec<(usize, usize)>>,
     dim: usize,
 ) -> (Vec<usize>, Vec<String>) {
+    return (cur_state.clone(), Vec::new());
     let (_, perm_map) = gen_perm_map_up_corner();
     let (prev_state, prev_action, cost_table) = bfs_up_first_corner();
     let pos = dim / 2 - 1;
@@ -806,10 +807,14 @@ fn solve_up_corner(
     let (prev_state, prev_action, cost_table) = bfs_up_corner();
     let mut state = cur_state.clone();
     let mut moves_str = Vec::new();
-    for pos in (1..=dim / 2 - 2).rev() {
+    for pos in (1..=dim / 2 - 1).rev() {
         let target_idx = cube_moves::target_idx_corner_distinct(dim, pos, &vec![0, 2, 4, 5]);
         let perm_idx = calc_permutation_idx_up(&state, sol_state, &perm_map, &target_idx);
-        let rot0 = cube_moves::calc_face_rot(&state, sol_state, dim, 0);
+        let rot0 = if pos == dim / 2 - 1 {
+            0
+        } else {
+            cube_moves::calc_face_rot(&state, sol_state, dim, 0)
+        };
         let state_idx = perm_idx * 4 + rot0;
         let moves = cube_moves::sequence_moves_four_corner(dim, pos);
         let (last_state, m) = construct_path_from_bfs(
@@ -925,9 +930,9 @@ fn solve_left_first_corner(
     actions: &HashMap<String, Vec<(usize, usize)>>,
     dim: usize,
 ) -> (Vec<usize>, Vec<String>) {
+    return (cur_state.clone(), Vec::new());
     let (_, perm_map) = gen_perm_map_left_corner();
     let (prev_state, prev_action, cost_table) = bfs_left_first_corner();
-    println!("length: {}", cost_table.len());
 
     let pos = dim / 2 - 1;
     let target_idx = cube_moves::target_idx_corner_distinct(dim, pos, &vec![2, 4, 5]);
@@ -952,13 +957,16 @@ fn solve_left_corner(
 ) -> (Vec<usize>, Vec<String>) {
     let (_, perm_map) = gen_perm_map_left_corner();
     let (prev_state, prev_action, cost_table) = bfs_left_corner();
-    println!("length: {}", cost_table.len());
     let mut state = cur_state.clone();
     let mut moves_str = Vec::new();
-    for pos in (1..=dim / 2 - 2).rev() {
+    for pos in (1..=dim / 2 - 1).rev() {
         let target_idx = cube_moves::target_idx_corner_distinct(dim, pos, &vec![2, 4, 5]);
         let perm_idx = calc_permutation_idx_left(&state, sol_state, &perm_map, &target_idx);
-        let rot0 = cube_moves::calc_face_rot(&state, sol_state, dim, 4);
+        let rot0 = if pos == (dim / 2 - 1) {
+            0
+        } else {
+            cube_moves::calc_face_rot(&state, sol_state, dim, 4)
+        };
         let state_idx = perm_idx * 4 + rot0;
         let moves = sequence_moves_left_corner(dim, pos);
         let (last_state, m) = construct_path_from_bfs(
@@ -984,7 +992,6 @@ fn solve_left_edge(
 ) -> (Vec<usize>, Vec<String>) {
     let (_, perm_map) = gen_perm_map_left_corner();
     let (prev_state, prev_action, cost_table) = bfs_left_edge();
-    println!("length: {}", cost_table.len());
 
     let mut state = cur_state.clone();
     let mut moves_str = Vec::new();
@@ -1025,7 +1032,7 @@ fn solve_green_middle_center(
         + cube_moves::calc_face_rot(cur_state, sol_state, dim, 1)
         + cube_moves::calc_face_rot(cur_state, sol_state, dim, 3)
         + cube_moves::calc_face_rot(cur_state, sol_state, dim, 4);
-    let (prev_state, prev_action) = bfs0(parity % 2);
+    let (prev_state, prev_action) = bfs0(1 - parity % 2);
     let pos = dim / 2 - 1;
     let rev_pos = dim - 1 - pos;
     let mut state_idx = calc_permutation_idx_corner(cur_state, sol_state, &perm_map, dim, pos);
@@ -1369,7 +1376,7 @@ fn solve_up_face(
 ) -> (Vec<usize>, Vec<String>) {
     let mut state = cur_state.clone();
     let mut moves = Vec::new();
-    let (end_state, m) = solve_up_first_corner(cur_state, sol_state, actions, dim);
+    let (end_state, m) = solve_up_first_corner(&state, sol_state, actions, dim);
     state = end_state;
     moves.extend(m);
     let (end_state, m) = solve_up_corner(&state, sol_state, actions, dim);
@@ -1391,7 +1398,7 @@ fn solve_left_face(
 ) -> (Vec<usize>, Vec<String>) {
     let mut state = cur_state.clone();
     let mut moves = Vec::new();
-    let (end_state, m) = solve_left_first_corner(cur_state, sol_state, actions, dim);
+    let (end_state, m) = solve_left_first_corner(&state, sol_state, actions, dim);
     state = end_state;
     moves.extend(m);
     let (end_state, m) = solve_left_corner(&state, sol_state, actions, dim);
@@ -1408,14 +1415,12 @@ fn solve_left_face(
 fn solve_green_middle2(
     cur_state: &Vec<usize>,
     sol_state: &Vec<usize>,
-    allowed_moves_inv: &HashMap<String, &Vec<i16>>,
     actions: &HashMap<String, Vec<(usize, usize)>>,
-    movable_pos: &Vec<Vec<usize>>,
     dim: usize,
 ) -> (Vec<usize>, Vec<String>) {
     let mut state = cur_state.clone();
     let mut moves = Vec::new();
-    let (end_state, m) = solve_green_middle_center(cur_state, sol_state, actions, dim);
+    let (end_state, m) = solve_green_middle_center(&state, sol_state, actions, dim);
     state = end_state;
     moves.extend(m);
     let (end_state, m) = solve_green_middle_corner(&state, sol_state, actions, dim);
@@ -2036,7 +2041,7 @@ fn solve_cube_by_rule(
     let mut state = init_state.clone();
     let mut moves = Vec::new();
     let (end_state, m) = solve_while_middle(
-        &init_state,
+        &state,
         &sol_state,
         &allowed_moves_inv,
         &actions,
@@ -2080,7 +2085,7 @@ fn solve_cube_by_rule(
             .len()
     );
     for y in 1..dim / 2 {
-        for x in 0..y - 1 {
+        for _ in 0..y - 1 {
             print!("  ");
         }
         for x in y + 1..dim - y - 1 {
@@ -2123,7 +2128,7 @@ fn solve_cube_by_rule(
 
     let (end_state, m) = solve_left_face(&state, &sol_state, &actions, dim);
     for y in 1..dim / 2 {
-        for x in 0..y - 1 {
+        for _ in 0..y - 1 {
             print!("  ");
         }
         for x in y + 1..dim - y - 1 {
@@ -2201,7 +2206,7 @@ fn solve_cube_by_rule(
     // }
 
     for y in 1..dim / 2 {
-        for x in 0..y - 1 {
+        for _ in 0..y - 1 {
             print!("  ");
         }
         for x in y + 1..dim - y - 1 {
@@ -2230,14 +2235,7 @@ fn solve_cube_by_rule(
         }
         println!("");
     }
-    let (end_state, m) = solve_green_middle2(
-        &state,
-        &sol_state,
-        &allowed_moves_inv,
-        &actions,
-        &movable_pos,
-        dim,
-    );
+    let (end_state, m) = solve_green_middle2(&state, &sol_state, &actions, dim);
     state = end_state;
     moves.extend(m);
     println!(
@@ -2247,7 +2245,75 @@ fn solve_cube_by_rule(
             .collect::<Vec<&str>>()
             .len()
     );
-    for i in 1..dim / 2 {
+
+    {
+        for i in 0..6 {
+            let final_rot = cube_moves::calc_face_rot(&state, &sol_state, dim, i);
+            let rot_action = [
+                format!("-d{}", dim - 1),
+                "f0".to_string(),
+                "r0".to_string(),
+                format!("-f{}", dim - 1),
+                format!("-r{}", dim - 1),
+                "d0".to_string(),
+            ];
+            if final_rot != 0 {
+                for _ in 0..4 - final_rot {
+                    state = cube_moves::apply_action(&state, &actions[&rot_action[i]]);
+                }
+            }
+            for j in 1..dim - 1 {
+                for k in 1..dim - 1 {
+                    if state[i * dim * dim + j * dim + k] != sol_state[i * dim * dim + j * dim + k]
+                    {
+                        println!("Could not resolve faces");
+                        for k in 0..6 {
+                            for i in 0..dim {
+                                for j in 0..dim {
+                                    // if state[k * dim * dim + i * dim + j] == k * dim * dim + i * dim + j {
+                                    //     print!("o ");
+                                    // } else {
+                                    //     print!("x ");
+                                    // }
+                                    print!("{:4} ", state[k * dim * dim + i * dim + j]);
+                                }
+                                println!("");
+                            }
+                            println!("");
+                        }
+                        return None;
+
+                        // println!(
+                        //     "{} {}",
+                        //     state[i * dim * dim + j * dim + k],
+                        //     sol_state[i * dim * dim + j * dim + k]
+                        // );
+                    }
+                }
+            }
+
+            if final_rot != 0 {
+                for _ in 0..final_rot {
+                    state = cube_moves::apply_action(&state, &actions[&rot_action[i]]);
+                }
+            }
+        }
+    }
+
+    /*
+     4: (1)
+     5: 1
+     6: 1 (2)
+     7: 1 2
+     8: 1 2 (3)
+    */
+    if dim % 2 == 0 {
+        println!("try first even");
+        let (end_state, m) = beam_search_cube_edge_first_even(&state, &sol_state, &actions, dim);
+        state = end_state;
+        moves.extend(m);
+    }
+    for i in 1..(dim - 1) / 2 {
         let heuristic_table = heuristic_table_cube_edge();
         println!("try {}", i);
         let (end_state, m) =
@@ -2255,20 +2321,20 @@ fn solve_cube_by_rule(
         state = end_state;
         moves.extend(m);
     }
-    for k in 0..6 {
-        for i in 0..dim {
-            for j in 0..dim {
-                // if state[k * dim * dim + i * dim + j] == k * dim * dim + i * dim + j {
-                //     print!("o ");
-                // } else {
-                //     print!("x ");
-                // }
-                print!("{:4} ", state[k * dim * dim + i * dim + j]);
-            }
-            println!("");
-        }
-        println!("");
-    }
+    // for k in 0..6 {
+    //     for i in 0..dim {
+    //         for j in 0..dim {
+    //             // if state[k * dim * dim + i * dim + j] == k * dim * dim + i * dim + j {
+    //             //     print!("o ");
+    //             // } else {
+    //             //     print!("x ");
+    //             // }
+    //             print!("{:4} ", state[k * dim * dim + i * dim + j]);
+    //         }
+    //         println!("");
+    //     }
+    //     println!("");
+    // }
 
     println!(
         "end edges: {}",
@@ -2290,7 +2356,7 @@ fn solve_cube_by_rule(
     // }
 
     for y in 1..dim / 2 {
-        for x in 0..y - 1 {
+        for _ in 0..y - 1 {
             print!("  ");
         }
         for x in y + 1..dim - y - 1 {
@@ -2810,9 +2876,6 @@ fn solve_cube(
 
     let checker_cube = sol_state.starts_with("A;B;A;B;A;B;A;B;A");
     let distinct_cube = sol_state.starts_with("N0");
-    if dim != 33 {
-        return None;
-    }
 
     if dim % 2 == 0 && checker_cube {
         return None;
@@ -2829,6 +2892,7 @@ fn solve_cube(
 
 fn solve() {
     let puzzle_info = solver::load_puzzle_info();
+    generate_cube_edge_first_even_move_for_bfs(&puzzle_info["cube_10/10/10"], 10);
     let puzzles = solver::load_puzzle();
     let submission = solver::load_submission();
     let mut submission_df: HashMap<usize, String> = HashMap::new();
@@ -2852,9 +2916,6 @@ fn solve() {
             .parse::<usize>()
             .unwrap();
         if dim <= 3 {
-            continue;
-        }
-        if dim % 2 == 0 {
             continue;
         }
 
@@ -3018,179 +3079,6 @@ fn attempt1() {
     }
     println!("{:?}", state);
 }
-#[allow(dead_code)]
-fn attempt2() {
-    let puzzle_info = solver::load_puzzle_info();
-    let info = &puzzle_info["cube_7/7/7"];
-    let (action, action_str) = create_action(&info);
-    let mut action_map = std::collections::HashMap::new();
-    for idx in 0..action_str.len() {
-        action_map.insert(action_str[idx].clone(), action[idx].clone());
-    }
-
-    let mut state = info["r1"]
-        .iter()
-        .map(|v| *v as usize)
-        .collect::<Vec<usize>>();
-    state = cube_moves::apply_action(&state, &action_map["-d6"]);
-    state = cube_moves::apply_action(&state, &action_map["r2"]);
-    state = cube_moves::apply_action(&state, &action_map["r3"]);
-    state = cube_moves::apply_action(&state, &action_map["d6"]);
-    state = cube_moves::apply_action(&state, &action_map["-r1"]);
-    state = cube_moves::apply_action(&state, &action_map["-d6"]);
-    state = cube_moves::apply_action(&state, &action_map["-r2"]);
-    state = cube_moves::apply_action(&state, &action_map["-r3"]);
-    state = cube_moves::apply_action(&state, &action_map["d6"]);
-    // state = cube_moves::apply_action(&state, &action_map["-r3"]);
-    // state = cube_moves::apply_action(&state, &action_map["-r0"]);
-    for i in 0..6 {
-        for j in 1..6 {
-            for k in 1..6 {
-                print!("{:3} ", state[i * 49 + j * 7 + k]);
-            }
-            println!("");
-        }
-        println!("");
-    }
-
-    let movable_pos = calc_movable(&info);
-    for m in &movable_pos {
-        println!("{:?}", m);
-    }
-}
-
-fn attempt3() {
-    let dim = 7;
-    let y = 1;
-    let x = 2;
-    let rev_x = dim - 1 - x;
-    let rev_y = dim - 1 - y;
-    let f_rev_x_minus = format!("-f{}", rev_x);
-    let f_rev_x_plus = format!("f{}", rev_x);
-    let f_x_minus = format!("-f{}", x);
-    let f_x_plus = format!("f{}", x);
-    let f_rev_y_minus = format!("-f{}", rev_y);
-    let f_rev_y_plus = format!("f{}", rev_y);
-    let f_y_minus = format!("-f{}", y);
-    let f_y_plus = format!("f{}", y);
-
-    let moves = [
-        Vec::from(["-r0"]),
-        Vec::from(["r0"]),
-        Vec::from(["-d0"]),
-        Vec::from(["d0"]),
-        Vec::from([
-            "r0",
-            f_rev_x_minus.as_str(),
-            "-r0",
-            f_rev_y_minus.as_str(),
-            "r0",
-            f_rev_x_plus.as_str(),
-            "-r0",
-            f_rev_y_plus.as_str(),
-        ]),
-        Vec::from([
-            f_rev_y_minus.as_str(),
-            "r0",
-            f_rev_x_minus.as_str(),
-            "-r0",
-            f_rev_y_plus.as_str(),
-            "r0",
-            f_rev_x_plus.as_str(),
-            "-r0",
-        ]),
-        Vec::from([
-            "-r0",
-            f_rev_x_minus.as_str(),
-            "r0",
-            f_y_minus.as_str(),
-            "-r0",
-            f_rev_x_plus.as_str(),
-            "r0",
-            f_y_plus.as_str(),
-        ]),
-        Vec::from([
-            f_y_minus.as_str(),
-            "-r0",
-            f_rev_x_minus.as_str(),
-            "r0",
-            f_y_plus.as_str(),
-            "-r0",
-            f_rev_x_plus.as_str(),
-            "r0",
-        ]),
-        Vec::from([
-            "-d0",
-            f_x_plus.as_str(),
-            "d0",
-            f_rev_y_plus.as_str(),
-            "-d0",
-            f_x_minus.as_str(),
-            "d0",
-            f_rev_y_minus.as_str(),
-        ]),
-        Vec::from([
-            f_rev_y_plus.as_str(),
-            "-d0",
-            f_x_plus.as_str(),
-            "d0",
-            f_rev_y_minus.as_str(),
-            "-d0",
-            f_x_minus.as_str(),
-            "d0",
-        ]),
-        Vec::from([
-            "d0",
-            f_x_plus.as_str(),
-            "-d0",
-            f_y_plus.as_str(),
-            "d0",
-            f_x_minus.as_str(),
-            "-d0",
-            f_y_minus.as_str(),
-        ]),
-        Vec::from([
-            f_y_plus.as_str(),
-            "d0",
-            f_x_plus.as_str(),
-            "-d0",
-            f_y_minus.as_str(),
-            "d0",
-            f_x_minus.as_str(),
-            "-d0",
-        ]),
-    ];
-
-    let puzzle_info = solver::load_puzzle_info();
-    let info = &puzzle_info["cube_7/7/7"];
-    println!("{:?}", info.keys().sorted());
-    let (action, action_str) = create_action(&info);
-    println!("{:?}", action_str.iter().sorted());
-    let mut action_map = std::collections::HashMap::new();
-    for idx in 0..action_str.len() {
-        action_map.insert(action_str[idx].clone(), action[idx].clone());
-    }
-    println!("{:?}", action_map.keys().sorted());
-    for mvs in moves.iter() {
-        let mut state = info[mvs[0]]
-            .iter()
-            .map(|v| *v as usize)
-            .collect::<Vec<usize>>();
-        for i in 1..mvs.len() {
-            println!("{}", mvs[i]);
-            state = cube_moves::apply_action(&state, &action_map[mvs[i]]);
-        }
-        for i in 0..6 {
-            for j in 1..6 {
-                for k in 1..6 {
-                    print!("{:3} ", state[i * 49 + j * 7 + k]);
-                }
-                println!("");
-            }
-            println!("");
-        }
-    }
-}
 
 fn target_idx_cube_edge(dim: usize, pos: usize) -> Vec<usize> {
     let rev_pos = dim - 1 - pos;
@@ -3207,6 +3095,27 @@ fn target_idx_cube_edge(dim: usize, pos: usize) -> Vec<usize> {
             res.push(i * dim * dim + y * dim + dim - 1);
         }
         for x in &[pos, half, rev_pos] {
+            res.push(i * dim * dim + (dim - 1) * dim + x);
+        }
+    }
+    res
+}
+
+fn target_idx_cube_edge_first_even(dim: usize) -> Vec<usize> {
+    let pos = dim / 2 - 1;
+    let rev_pos = dim - 1 - pos;
+    let mut res = Vec::new();
+    for i in 0..6 {
+        for x in &[pos, rev_pos] {
+            res.push(i * dim * dim + x);
+        }
+        for y in &[pos, rev_pos] {
+            res.push(i * dim * dim + y * dim);
+        }
+        for y in &[pos, rev_pos] {
+            res.push(i * dim * dim + y * dim + dim - 1);
+        }
+        for x in &[pos, rev_pos] {
             res.push(i * dim * dim + (dim - 1) * dim + x);
         }
     }
@@ -3262,6 +3171,37 @@ fn sequence_moves_for_cube_edge(dim: usize, pos: usize) -> Vec<Vec<String>> {
                 format!("r{}", first_rot_pos),
             ]),
         ]));
+        let r2p = format!("r{}", first_rot_pos);
+        let r2m = format!("-r{}", first_rot_pos);
+        let r3p = format!("r{}", dim - 1 - first_rot_pos);
+        let r3m = format!("-r{}", dim - 1 - first_rot_pos);
+        let top = format!("d{}", dim - 1);
+        let another_pattern = Vec::from([
+            r2p.clone(),
+            top.clone(),
+            top.clone(),
+            r3p.clone(),
+            top.clone(),
+            top.clone(),
+            r3m.clone(),
+            top.clone(),
+            top.clone(),
+            r2m.clone(),
+            top.clone(),
+            top.clone(),
+            r3p.clone(),
+            top.clone(),
+            top.clone(),
+            r3m.clone(),
+        ]);
+        base_sequences.push(
+            another_pattern
+                .iter()
+                .rev()
+                .map(|s| cube_moves::rev_move(s))
+                .collect(),
+        );
+        base_sequences.push(another_pattern);
     }
     let mut one_face = base_sequences.clone();
     for _ in 0..3 {
@@ -3431,22 +3371,6 @@ fn generate_cube_edge_move_for_bfs(allowed_moves: &HashMap<String, Vec<i16>>, di
                                 state[i * dim * dim + y * dim + j] / dim
                             );
                         } else {
-                            if state[i * dim * dim + y * dim + half] % dim
-                                != state[i * dim * dim + y * dim + j] % dim
-                            {
-                                println!("{:?}", sequence);
-                                for a in 0..6 {
-                                    for b in 0..dim {
-                                        for c in 0..dim {
-                                            print!("{:3} ", state[a * dim * dim + b * dim + c]);
-                                        }
-                                        println!("");
-                                    }
-                                    println!("");
-                                }
-                                println!("{} {} {}", i, y, j);
-                            }
-
                             assert_eq!(
                                 state[i * dim * dim + y * dim + half] % dim,
                                 state[i * dim * dim + y * dim + j] % dim
@@ -3494,13 +3418,145 @@ fn generate_cube_edge_move_for_bfs(allowed_moves: &HashMap<String, Vec<i16>>, di
         }
     }
     let res = result.unwrap();
-    println!("[");
-    for r in &res {
-        println!("(Vec::from({:?}), {}),", r.0, r.1)
-    }
-    println!("]");
+    // println!("[");
+    // for r in &res {
+    //     println!("(Vec::from({:?}), {}),", r.0, r.1)
+    // }
+    // println!("]");
     let serialized = serde_json::to_string(&res).unwrap();
     std::fs::write("generate_cube_edge_move_for_bfs.json", serialized).ok();
+}
+
+#[allow(dead_code)]
+fn generate_cube_edge_first_even_move_for_bfs(
+    allowed_moves: &HashMap<String, Vec<i16>>,
+    dim: usize,
+) {
+    assert!(dim % 2 == 0 && dim >= 6);
+    let mut result = Vec::new();
+    let actions = cube_moves::create_actions(&allowed_moves);
+    let sol_state = (0..6 * dim * dim).collect::<Vec<usize>>();
+    let pos = dim / 2 - 1;
+    {
+        let target_idx = target_idx_cube_edge_first_even(dim);
+        let mut idx_map = std::collections::HashMap::new();
+        for i in 0..target_idx.len() {
+            idx_map.insert(target_idx[i], i);
+        }
+        let sequences = sequence_moves_for_cube_edge(dim, pos);
+        for sequence in sequences.iter() {
+            let mut state = allowed_moves[&sequence[0]]
+                .iter()
+                .map(|v| *v as usize)
+                .collect::<Vec<usize>>();
+            for i in 1..sequence.len() {
+                state = cube_moves::apply_action(&state, &actions[&sequence[i]]);
+            }
+
+            for face in 0..6 {
+                for i in 1..dim - 1 {
+                    for j in 1..dim - 1 {
+                        assert_eq!(state[face * dim * dim + i * dim + j] / (dim * dim), face);
+                    }
+                }
+            }
+            for (i, rot_action) in [
+                format!("-d{}", dim - 1),
+                "f0".to_string(),
+                "r0".to_string(),
+                format!("-f{}", dim - 1),
+                format!("-r{}", dim - 1),
+                "d0".to_string(),
+            ]
+            .iter()
+            .enumerate()
+            {
+                let final_rot = cube_moves::calc_face_rot(&state, &sol_state, dim, i);
+                if final_rot != 0 {
+                    for _ in 0..4 - final_rot {
+                        state = cube_moves::apply_action(&state, &actions[rot_action]);
+                    }
+                }
+                for j in 1..dim - 1 {
+                    for k in 1..dim - 1 {
+                        assert_eq!(
+                            state[i * dim * dim + j * dim + k],
+                            sol_state[i * dim * dim + j * dim + k]
+                        );
+                    }
+                }
+
+                if final_rot != 0 {
+                    for _ in 0..final_rot {
+                        state = cube_moves::apply_action(&state, &actions[rot_action]);
+                    }
+                }
+            }
+            for i in 0..6 {
+                let rev_pos = dim - 1 - pos;
+                for y in [0, dim - 1] {
+                    for j in 1..dim - 1 {
+                        if j == pos || j == rev_pos {
+                            continue;
+                        }
+                        if state[i * dim * dim + y * dim + 1] / dim % dim % (dim - 1) == 0 {
+                            assert_eq!(
+                                state[i * dim * dim + y * dim + 1] / dim,
+                                state[i * dim * dim + y * dim + j] / dim
+                            );
+                        } else {
+                            assert_eq!(
+                                state[i * dim * dim + y * dim + 1] % dim,
+                                state[i * dim * dim + y * dim + j] % dim
+                            );
+                            assert_eq!(
+                                state[i * dim * dim + y * dim + 1] / dim.pow(2),
+                                state[i * dim * dim + y * dim + j] / dim.pow(2)
+                            );
+                        }
+                    }
+                }
+                for x in [0, dim - 1] {
+                    for j in 1..dim - 1 {
+                        if j == pos || j == rev_pos {
+                            continue;
+                        }
+                        if state[i * dim * dim + dim + x] / dim % dim % (dim - 1) == 0 {
+                            assert_eq!(
+                                state[i * dim * dim + dim + x] / dim,
+                                state[i * dim * dim + j * dim + x] / dim
+                            );
+                        } else {
+                            assert_eq!(
+                                state[i * dim * dim + dim + x] % dim,
+                                state[i * dim * dim + j * dim + x] % dim
+                            );
+                            assert_eq!(
+                                state[i * dim * dim + dim + x] / dim.pow(2),
+                                state[i * dim * dim + j * dim + x] / dim.pow(2)
+                            );
+                        }
+                    }
+                }
+            }
+            let mut cur_move = Vec::new();
+            for idx in target_idx.iter() {
+                cur_move.push(idx_map[&state[*idx]]);
+            }
+            result.push((cur_move, sequence.len()));
+        }
+    }
+    // println!("[");
+    // for r in &res {
+    //     println!("(Vec::from({:?}), {}),", r.0, r.1)
+    // }
+    // println!("]");
+    let serialized = serde_json::to_string(&result).unwrap();
+    std::fs::write(
+        "generate_cube_edge_first_even_move_for_bfs.json",
+        serialized,
+    )
+    .ok();
 }
 
 #[allow(dead_code)]
@@ -3580,11 +3636,11 @@ fn generate_cube_face_move_for_bfs(allowed_moves: &HashMap<String, Vec<i16>>, di
         result.push((final_rot, sequence.len()));
     }
 
-    println!("[");
-    for r in &result {
-        println!("(Vec::from({:?}), {}),", r.0, r.1)
-    }
-    println!("]");
+    // println!("[");
+    // for r in &result {
+    //     println!("(Vec::from({:?}), {}),", r.0, r.1)
+    // }
+    // println!("]");
     let serialized = serde_json::to_string(&result).unwrap();
     std::fs::write("generate_cube_face_move_for_bfs.json", serialized).ok();
 }
@@ -3625,6 +3681,7 @@ fn heuristic_table_cube_edge() -> Vec<Vec<i32>> {
             }
         }
     }
+    let mut sum_cost = 0;
     let mut max_cost = 0;
     let mut reachable = 0;
     for r in res.iter() {
@@ -3636,32 +3693,87 @@ fn heuristic_table_cube_edge() -> Vec<Vec<i32>> {
             if *c > max_cost {
                 max_cost = *c;
             }
+            sum_cost += *c;
         }
     }
     println!("reachable: {}", reachable);
     println!("max_cost: {}", max_cost);
+    println!("sum_cost: {}", sum_cost);
+    res
+}
+
+fn heuristic_table_cube_edge_first_even() -> Vec<Vec<i32>> {
+    let mut res = vec![vec![std::i32::MAX; 48]; 48];
+    let mut priority_qu = BinaryHeap::new();
+    let contents =
+        std::fs::read_to_string("generate_cube_edge_first_even_move_for_bfs.json").unwrap();
+    let actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+    for i in 0..24 {
+        res[2 * i][2 * i + 1] = 0;
+        res[2 * i + 1][2 * i] = 0;
+        priority_qu.push(Reverse((0, (2 * i, 2 * i + 1))));
+        priority_qu.push(Reverse((0, (2 * i + 1, 2 * i))));
+    }
+    while let Some(Reverse((cur_cost, (p1, p2)))) = priority_qu.pop() {
+        let c = res[p1][p2];
+        if cur_cost > c {
+            continue;
+        }
+        for (perm, action_cost) in actions.iter() {
+            let mut next_p1 = 0;
+            let mut next_p2 = 0;
+            for j in 0..perm.len() {
+                if perm[j] == p1 {
+                    next_p1 = j;
+                }
+                if perm[j] == p2 {
+                    next_p2 = j;
+                }
+            }
+            if action_cost + c < res[next_p1][next_p2] {
+                res[next_p1][next_p2] = action_cost + c;
+                priority_qu.push(Reverse((action_cost + c, (next_p1, next_p2))));
+            }
+        }
+    }
+    let mut sum_cost = 0;
+    let mut max_cost = 0;
+    let mut reachable = 0;
+    for r in res.iter() {
+        for c in r.iter() {
+            if *c == std::i32::MAX {
+                continue;
+            }
+            reachable += 1;
+            if *c > max_cost {
+                max_cost = *c;
+            }
+            sum_cost += *c;
+        }
+    }
+    println!("reachable: {}", reachable);
+    println!("max_cost: {}", max_cost);
+    println!("sum_cost: {}", sum_cost);
     res
 }
 
 fn cube_edge_to_perm(
     cur_state: &Vec<usize>,
     sol_state: &Vec<usize>,
-    dim: usize,
-    pos: usize,
-) -> Vec<usize> {
-    let target_idx = target_idx_cube_edge(dim, pos);
-    println!("{:?}", target_idx);
+    target_idx: &Vec<usize>,
+) -> Vec<u8> {
     let mut idx_map = HashMap::new();
     for i in 0..target_idx.len() {
-        idx_map.insert(sol_state[target_idx[i]], i);
+        idx_map.insert(sol_state[target_idx[i]], i as u8);
     }
     target_idx.iter().map(|i| idx_map[&cur_state[*i]]).collect()
 }
 
-fn calc_heuristic_cube_edge(cur_perm: &Vec<usize>, heuristic_table: &Vec<Vec<i32>>) -> i32 {
+fn calc_heuristic_cube_edge(cur_perm: &Vec<u8>, heuristic_table: &Vec<Vec<i32>>) -> i32 {
     let mut res = 0;
     for i in 0..cur_perm.len() / 3 {
-        if heuristic_table[cur_perm[3 * i + 1]][cur_perm[3 * i]] == std::i32::MAX {
+        if heuristic_table[cur_perm[3 * i + 1] as usize][cur_perm[3 * i] as usize] == std::i32::MAX
+        {
             println!("{:?} {}", cur_perm, i);
             println!(
                 "{} {} {} {}",
@@ -3672,8 +3784,28 @@ fn calc_heuristic_cube_edge(cur_perm: &Vec<usize>, heuristic_table: &Vec<Vec<i32
             );
             assert!(false);
         }
-        res += heuristic_table[cur_perm[3 * i + 1]][cur_perm[3 * i]];
-        res += heuristic_table[cur_perm[3 * i + 1]][cur_perm[3 * i + 2]];
+        res += heuristic_table[cur_perm[3 * i + 1] as usize][cur_perm[3 * i] as usize];
+        res += heuristic_table[cur_perm[3 * i + 1] as usize][cur_perm[3 * i + 2] as usize];
+    }
+    res / 2
+}
+
+fn calc_heuristic_cube_edge_first_even(cur_perm: &Vec<u8>, heuristic_table: &Vec<Vec<i32>>) -> i32 {
+    let mut res = 0;
+    for i in 0..cur_perm.len() / 2 {
+        if heuristic_table[cur_perm[2 * i] as usize][cur_perm[2 * i + 1] as usize] == std::i32::MAX
+        {
+            println!("{:?} {}", cur_perm, i);
+            println!(
+                "{} {} {} {}",
+                cur_perm[2 * i],
+                cur_perm[2 * i + 1],
+                2 * i,
+                2 * i + 1,
+            );
+            assert!(false);
+        }
+        res += heuristic_table[cur_perm[2 * i] as usize][cur_perm[2 * i + 1] as usize];
     }
     res / 2
 }
@@ -3689,10 +3821,10 @@ fn beam_search_cube_edge(
     let mut priority_qu = BinaryHeap::new();
     let contents = std::fs::read_to_string("generate_cube_edge_move_for_bfs.json").unwrap();
     let actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
-    let mut prev_action: HashMap<Vec<usize>, usize> = HashMap::new();
-    let mut cost: HashMap<Vec<usize>, i32> = HashMap::new();
+    let mut prev_action: HashMap<Vec<u8>, usize> = HashMap::new();
+    let mut cost: HashMap<Vec<u8>, i32> = HashMap::new();
     let mut upper_cost = std::i32::MAX;
-    let init_perm = cube_edge_to_perm(cur_state, sol_state, dim, pos);
+    let init_perm = cube_edge_to_perm(cur_state, sol_state, &target_idx_cube_edge(dim, pos));
     priority_qu.push(Reverse((
         calc_heuristic_cube_edge(&init_perm, heuristic_table),
         0,
@@ -3713,6 +3845,9 @@ fn beam_search_cube_edge(
             continue;
         }
         cnt += 1;
+        if cnt == 100000 {
+            break;
+        }
         let mut is_goal = true;
         for i in 0..state.len() / 3 {
             if state[i * 3].abs_diff(state[i * 3 + 1]) != 1
@@ -3727,6 +3862,7 @@ fn beam_search_cube_edge(
             println!("upper_cost: {}", upper_cost);
             let mut cur_perm = state;
             let mut sol_actions = Vec::new();
+
             while let Some(action_idx) = prev_action.get(&cur_perm) {
                 sol_actions.push(*action_idx);
                 cur_perm = apply_perm_inv(&cur_perm, &actions[*action_idx].0);
@@ -3759,6 +3895,91 @@ fn beam_search_cube_edge(
     (end_state, sol_moves)
 }
 
+fn beam_search_cube_edge_first_even(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    cube_actions: &HashMap<String, Vec<(usize, usize)>>,
+    dim: usize,
+) -> (Vec<usize>, Vec<String>) {
+    let heuristic_table = heuristic_table_cube_edge_first_even();
+    let pos = dim / 2 - 1;
+    let mut priority_qu = BinaryHeap::new();
+    let contents =
+        std::fs::read_to_string("generate_cube_edge_first_even_move_for_bfs.json").unwrap();
+    let actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+    let mut prev_action: HashMap<Vec<u8>, usize> = HashMap::new();
+    let mut cost: HashMap<Vec<u8>, i32> = HashMap::new();
+    let mut upper_cost = std::i32::MAX;
+    let init_perm = cube_edge_to_perm(cur_state, sol_state, &target_idx_cube_edge_first_even(dim));
+    println!("init_perm: {:?}", init_perm);
+    priority_qu.push(Reverse((
+        calc_heuristic_cube_edge_first_even(&init_perm, &heuristic_table),
+        0,
+        init_perm.clone(),
+    )));
+    cost.insert(init_perm.clone(), 0);
+
+    let mut cnt = 0;
+    let mut end_state = cur_state.clone();
+    let mut sol_moves = Vec::new();
+
+    while let Some(Reverse((heuristic_cost, cur_cost, state))) = priority_qu.pop() {
+        let c = cost[&state];
+        if cur_cost > c {
+            continue;
+        }
+        if cur_cost + (heuristic_cost - cur_cost) / 2 > upper_cost {
+            continue;
+        }
+        cnt += 1;
+        if cnt == 100000 {
+            break;
+        }
+        let mut is_goal = true;
+        for i in 0..state.len() / 2 {
+            if state[2 * i] / 2 != state[2 * i + 1] / 2 {
+                is_goal = false;
+                break;
+            }
+        }
+        if is_goal {
+            upper_cost = cur_cost;
+            println!("upper_cost: {}", upper_cost);
+            let mut cur_perm = state;
+            let mut sol_actions = Vec::new();
+
+            while let Some(action_idx) = prev_action.get(&cur_perm) {
+                sol_actions.push(*action_idx);
+                cur_perm = apply_perm_inv(&cur_perm, &actions[*action_idx].0);
+            }
+            let action_strings = sequence_moves_for_cube_edge(dim, pos);
+            end_state = cur_state.clone();
+            sol_moves.clear();
+            for action_idx in sol_actions.iter().rev() {
+                for act in action_strings[*action_idx].iter() {
+                    sol_moves.push(act.clone());
+                    end_state = cube_moves::apply_action(&end_state, &cube_actions[act]);
+                }
+            }
+            // break;
+            continue;
+        }
+        for (action_idx, (perm, action_cost)) in actions.iter().enumerate() {
+            let next_state = apply_perm(&state, &perm);
+            if !cost.contains_key(&next_state) {
+                cost.insert(next_state.clone(), std::i32::MAX);
+            }
+            if action_cost + c < cost[&next_state] {
+                cost.insert(next_state.clone(), action_cost + c);
+                prev_action.insert(next_state.clone(), action_idx);
+                let h = calc_heuristic_cube_edge_first_even(&next_state, &heuristic_table);
+                priority_qu.push(Reverse((action_cost + c + h, action_cost + c, next_state)));
+            }
+        }
+    }
+    (end_state, sol_moves)
+}
+
 fn bfs_cube_face_rot(
     cur_state: &Vec<usize>,
     sol_state: &Vec<usize>,
@@ -3781,7 +4002,7 @@ fn bfs_cube_face_rot(
             res = 4 * res + rot[i];
         }
         res
-    };
+    }
     priority_qu.push(Reverse((0, init_rot.clone())));
     cost[rot_to_idx(&init_rot)] = 0;
 
@@ -3794,7 +4015,6 @@ fn bfs_cube_face_rot(
         if cur_idx == 0 {
             let mut cur_rot_idx = 0;
             let mut sol_actions = Vec::new();
-            println!("{:?}", init_rot);
             while let Some(action_idx) = prev_action[cur_rot_idx] {
                 sol_actions.push(action_idx);
                 cur_rot_idx = prev_state[cur_rot_idx].unwrap();
@@ -3813,7 +4033,6 @@ fn bfs_cube_face_rot(
                 for i in 0..6 {
                     cur_face_rot[i] = cube_moves::calc_face_rot(&end_state, &sol_state, dim, i);
                 }
-                println!("{:?}", cur_face_rot);
             }
             return (end_state, sol_moves);
         }
@@ -3923,11 +4142,14 @@ fn get_perm_map() -> (Vec<Vec<usize>>, HashMap<Vec<usize>, usize>) {
     (perm_list, perm_map)
 }
 
-fn apply_perm(state: &Vec<usize>, perm: &Vec<usize>) -> Vec<usize> {
-    perm.iter().map(|i| state[*i]).collect::<Vec<usize>>()
+fn apply_perm<T>(state: &Vec<T>, perm: &Vec<usize>) -> Vec<T>
+where
+    T: Copy,
+{
+    perm.iter().map(|i| state[*i]).collect()
 }
 
-fn apply_perm_inv(state: &Vec<usize>, perm: &Vec<usize>) -> Vec<usize> {
+fn apply_perm_inv(state: &Vec<u8>, perm: &Vec<usize>) -> Vec<u8> {
     let mut res = vec![0; perm.len()];
     for i in 0..perm.len() {
         res[perm[i]] = state[i];
@@ -4041,19 +4263,19 @@ fn bfs1() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
             }
         }
     }
-    let mut max_cost = 0;
-    let mut max_idx = 0;
-    let mut reachable = 0;
-    for (idx, c) in cost.iter().enumerate() {
-        if *c == std::i32::MAX {
-            continue;
-        }
-        reachable += 1;
-        if *c > max_cost {
-            max_cost = *c;
-            max_idx = idx;
-        }
-    }
+    // let mut max_cost = 0;
+    // let mut max_idx = 0;
+    // let mut reachable = 0;
+    // for (idx, c) in cost.iter().enumerate() {
+    //     if *c == std::i32::MAX {
+    //         continue;
+    //     }
+    //     reachable += 1;
+    //     if *c > max_cost {
+    //         max_cost = *c;
+    //         max_idx = idx;
+    //     }
+    // }
     // println!("reachable: {}", reachable);
     // println!(
     //     "max_cost: {} {:?} {} {}",
@@ -4062,85 +4284,6 @@ fn bfs1() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
     //     max_idx / 4 % 4,
     //     max_idx % 4
     // );
-    (prev_state, prev_action)
-}
-
-fn bfs2() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
-    let (perm_list, perm_map) = get_perm_map();
-    let mut priority_qu = BinaryHeap::new();
-    let actions = [
-        (Vec::from([1, 3, 0, 2, 4, 5, 6, 7]), 1), // rotate top
-        (Vec::from([2, 0, 3, 1, 4, 5, 6, 7]), 1), // rotate top (rev)
-        (Vec::from([0, 1, 2, 3, 5, 7, 4, 6]), 1), // rotate btm
-        (Vec::from([0, 1, 2, 3, 6, 4, 7, 5]), 1), // ratate btm (rev)
-        (Vec::from([0, 1, 6, 3, 4, 5, 7, 2]), 8), // rotate btm_right
-        (Vec::from([0, 1, 7, 3, 4, 5, 2, 6]), 8), // rotate btm_right (inv)
-        (Vec::from([0, 5, 2, 3, 4, 7, 6, 1]), 8), // rotate btm_left
-        (Vec::from([0, 7, 2, 3, 4, 1, 6, 5]), 8), // rotate btm_left (rev)
-        (Vec::from([6, 1, 0, 3, 4, 5, 2, 7]), 8), // rotate top_right
-        (Vec::from([2, 1, 6, 3, 4, 5, 0, 7]), 8), // rotate top_right
-        (Vec::from([5, 0, 2, 3, 4, 1, 6, 7]), 8), // rotate top_left
-        (Vec::from([1, 5, 2, 3, 4, 0, 6, 7]), 8), // rotate top_left
-    ];
-    let mut prev_state: Vec<Option<usize>> = vec![None; perm_list.len()];
-    let mut prev_action: Vec<Option<usize>> = vec![None; perm_list.len()];
-    let mut cost: Vec<i32> = vec![std::i32::MAX; 16 * perm_list.len()];
-    for v0 in (0..4).permutations(4) {
-        for v1 in (4..8).permutations(4) {
-            let mut start = Vec::new();
-            start.extend(v0.iter());
-            start.extend(v1.iter());
-            priority_qu.push(Reverse((0, start.clone())));
-            let idx = perm_map[&start];
-            cost[idx] = 0;
-        }
-    }
-
-    while let Some(Reverse((cur_cost, state))) = priority_qu.pop() {
-        let idx = perm_map[&state];
-        let c = cost[idx];
-        if cur_cost > c {
-            continue;
-        }
-        for (action_idx, (perm, action_cost)) in actions.iter().enumerate() {
-            let next_state = apply_perm(&state, &perm);
-            let next_idx = perm_map[&next_state];
-            if action_cost + c < cost[next_idx] {
-                cost[next_idx] = action_cost + c;
-                prev_state[next_idx] = Some(idx);
-                prev_action[next_idx] = Some(action_idx);
-                priority_qu.push(Reverse((action_cost + c, next_state)));
-            }
-        }
-    }
-    let mut max_cost = 0;
-    let mut max_idx = 0;
-    let mut reachable = 0;
-    let mut printed = false;
-    for (idx, c) in cost.iter().enumerate() {
-        if *c == std::i32::MAX {
-            if idx % 16 == 0 {
-                if !printed {
-                    println!("{:?}", perm_list[idx / 16])
-                }
-                printed = true;
-            }
-            continue;
-        }
-        reachable += 1;
-        if *c > max_cost {
-            max_cost = *c;
-            max_idx = idx;
-        }
-    }
-    println!("reachable: {}", reachable);
-    println!(
-        "max_cost: {} {:?} {} {}",
-        max_cost,
-        perm_list[max_idx / 16],
-        max_idx / 4 % 4,
-        max_idx % 4
-    );
     (prev_state, prev_action)
 }
 
@@ -4193,34 +4336,34 @@ fn bfs3() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
             }
         }
     }
-    let mut max_cost = 0;
-    let mut max_idx = 0;
-    let mut reachable = 0;
-    let mut printed = false;
-    for (idx, c) in cost.iter().enumerate() {
-        if *c == std::i32::MAX {
-            if idx % 16 == 0 {
-                if !printed {
-                    println!("{:?}", perm_list[idx / 16])
-                }
-                printed = true;
-            }
-            continue;
-        }
-        reachable += 1;
-        if *c > max_cost {
-            max_cost = *c;
-            max_idx = idx;
-        }
-    }
-    println!("reachable: {}", reachable);
-    println!(
-        "max_cost: {} {:?} {} {}",
-        max_cost,
-        perm_list[max_idx / 16],
-        max_idx / 4 % 4,
-        max_idx % 4
-    );
+    // let mut max_cost = 0;
+    // let mut max_idx = 0;
+    // let mut reachable = 0;
+    // let mut printed = false;
+    // for (idx, c) in cost.iter().enumerate() {
+    //     if *c == std::i32::MAX {
+    //         if idx % 16 == 0 {
+    //             if !printed {
+    //                 println!("{:?}", perm_list[idx / 16])
+    //             }
+    //             printed = true;
+    //         }
+    //         continue;
+    //     }
+    //     reachable += 1;
+    //     if *c > max_cost {
+    //         max_cost = *c;
+    //         max_idx = idx;
+    //     }
+    // }
+    // println!("reachable: {}", reachable);
+    // println!(
+    //     "max_cost: {} {:?} {} {}",
+    //     max_cost,
+    //     perm_list[max_idx / 16],
+    //     max_idx / 4 % 4,
+    //     max_idx % 4
+    // );
     (prev_state, prev_action)
 }
 
