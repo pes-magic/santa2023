@@ -3709,6 +3709,9 @@ fn beam_search_cube_edge(
         if cur_cost > c {
             continue;
         }
+        if cur_cost + (heuristic_cost - cur_cost) / 2 > upper_cost {
+            continue;
+        }
         cnt += 1;
         let mut is_goal = true;
         for i in 0..state.len() / 3 {
@@ -3737,7 +3740,8 @@ fn beam_search_cube_edge(
                     end_state = cube_moves::apply_action(&end_state, &cube_actions[act]);
                 }
             }
-            break;
+            // break;
+            continue;
         }
         for (action_idx, (perm, action_cost)) in actions.iter().enumerate() {
             let next_state = apply_perm(&state, &perm);
