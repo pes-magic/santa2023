@@ -2630,7 +2630,6 @@ pub fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<Strin
                 rev_move(first),
                 rot.clone(),
                 rev_move(second),
-                rev_move(rot),
             ]));
         }
     }

@@ -300,8 +300,8 @@ fn generate_move_for_bfs_left_edge(allowed_moves: &HashMap<String, Vec<i16>>, di
                     .map(|v| *v as usize)
                     .collect::<Vec<usize>>();
                 let mut rot = 0;
-                let plus_rot = format!("-d{}", dim - 1);
-                let minus_rot = format!("d{}", dim - 1);
+                let plus_rot = format!("-r{}", dim - 1);
+                let minus_rot = format!("r{}", dim - 1);
 
                 for i in 1..sequence.len() {
                     state = cube_moves::apply_action(&state, &actions[&sequence[i]]);

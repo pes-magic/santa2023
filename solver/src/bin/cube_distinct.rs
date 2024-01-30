@@ -343,7 +343,7 @@ fn resolve_center_and_inversion(
                 }
             }
             if ok {
-                if i == 0 {
+                if i == 1 {
                     state = cube_moves::apply_action(&state, &actions["r0"]);
                     moves.push("r0".to_string());
                     println!("r0");
@@ -1025,7 +1025,7 @@ fn solve_green_middle_center(
         + cube_moves::calc_face_rot(cur_state, sol_state, dim, 1)
         + cube_moves::calc_face_rot(cur_state, sol_state, dim, 3)
         + cube_moves::calc_face_rot(cur_state, sol_state, dim, 4);
-    let (prev_state, prev_action) = bfs0(1 - parity % 2);
+    let (prev_state, prev_action) = bfs0(parity % 2);
     let pos = dim / 2 - 1;
     let rev_pos = dim - 1 - pos;
     let mut state_idx = calc_permutation_idx_corner(cur_state, sol_state, &perm_map, dim, pos);
@@ -2079,6 +2079,37 @@ fn solve_cube_by_rule(
             .collect::<Vec<&str>>()
             .len()
     );
+    for y in 1..dim / 2 {
+        for x in 0..y - 1 {
+            print!("  ");
+        }
+        for x in y + 1..dim - y - 1 {
+            let target_idx = cube_moves::target_idx_edge_distinct(dim, y, x, &vec![0, 2, 4, 5]);
+            let mut idx_map = HashMap::new();
+            for (i, idx) in target_idx.iter().enumerate() {
+                idx_map.insert(sol_state[*idx], i);
+            }
+            let mut p = Vec::new();
+            for idx in target_idx.iter() {
+                p.push(idx_map[&state[*idx]]);
+            }
+            let mut cnt = 0;
+            for i in 0..p.len() {
+                for j in i + 1..p.len() {
+                    if p[i] > p[j] {
+                        cnt += 1;
+                    }
+                }
+            }
+            if cnt % 2 == 1 {
+                print!("x ");
+            } else {
+                print!("o ");
+            }
+        }
+        println!("");
+    }
+
     let (end_state, m) = solve_up_face(&state, &sol_state, &actions, dim);
     state = end_state;
     moves.extend(m);
@@ -2090,15 +2121,46 @@ fn solve_cube_by_rule(
             .len()
     );
 
-    // let (end_state, m) = solve_left_face(&state, &sol_state, &actions, dim);
-    let (end_state, m) = solve_orange_middle(
-        &state,
-        &sol_state,
-        &allowed_moves_inv,
-        &actions,
-        &movable_pos,
-        dim,
-    );
+    let (end_state, m) = solve_left_face(&state, &sol_state, &actions, dim);
+    for y in 1..dim / 2 {
+        for x in 0..y - 1 {
+            print!("  ");
+        }
+        for x in y + 1..dim - y - 1 {
+            let target_idx = cube_moves::target_idx_edge_distinct(dim, y, x, &vec![0, 2, 4, 5]);
+            let mut idx_map = HashMap::new();
+            for (i, idx) in target_idx.iter().enumerate() {
+                idx_map.insert(sol_state[*idx], i);
+            }
+            let mut p = Vec::new();
+            for idx in target_idx.iter() {
+                p.push(idx_map[&state[*idx]]);
+            }
+            let mut cnt = 0;
+            for i in 0..p.len() {
+                for j in i + 1..p.len() {
+                    if p[i] > p[j] {
+                        cnt += 1;
+                    }
+                }
+            }
+            if cnt % 2 == 1 {
+                print!("x ");
+            } else {
+                print!("o ");
+            }
+        }
+        println!("");
+    }
+
+    // let (end_state, m) = solve_orange_middle(
+    //     &state,
+    //     &sol_state,
+    //     &allowed_moves_inv,
+    //     &actions,
+    //     &movable_pos,
+    //     dim,
+    // );
     state = end_state;
     moves.extend(m);
     println!(
@@ -2193,20 +2255,20 @@ fn solve_cube_by_rule(
         state = end_state;
         moves.extend(m);
     }
-    // for k in 0..6 {
-    //     for i in 0..dim {
-    //         for j in 0..dim {
-    //             // if state[k * dim * dim + i * dim + j] == k * dim * dim + i * dim + j {
-    //             //     print!("o ");
-    //             // } else {
-    //             //     print!("x ");
-    //             // }
-    //             print!("{:4} ", state[k * dim * dim + i * dim + j]);
-    //         }
-    //         println!("");
-    //     }
-    //     println!("");
-    // }
+    for k in 0..6 {
+        for i in 0..dim {
+            for j in 0..dim {
+                // if state[k * dim * dim + i * dim + j] == k * dim * dim + i * dim + j {
+                //     print!("o ");
+                // } else {
+                //     print!("x ");
+                // }
+                print!("{:4} ", state[k * dim * dim + i * dim + j]);
+            }
+            println!("");
+        }
+        println!("");
+    }
 
     println!(
         "end edges: {}",
