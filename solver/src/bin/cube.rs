@@ -315,7 +315,6 @@ fn solve_cube_edges(
 
 fn solve_cube_by_rule(
     puzzle: &solver::Puzzle,
-    move_map: &HashMap<String, String>,
     allowed_moves: &HashMap<String, Vec<i16>>,
     current_solution: &String,
     dim: usize,
@@ -401,13 +400,9 @@ fn solve_cube_by_rule(
     //     println!("");
     // }
     let cur_state = solver::list_to_state(&state, &piece_list);
-    if let Some(last_move) = solve_cube_by_solver(
-        &cur_state,
-        &puzzle.solution_state,
-        move_map,
-        allowed_moves,
-        dim,
-    ) {
+    if let Some(last_move) =
+        solve_cube_by_solver(&cur_state, &puzzle.solution_state, allowed_moves, dim)
+    {
         moves.push(last_move);
         Some(moves.join("."))
     } else {
@@ -418,7 +413,6 @@ fn solve_cube_by_rule(
 fn solve_cube_by_solver(
     init_state: &String,
     sol_state: &String,
-    move_map: &HashMap<String, String>,
     allowed_moves: &HashMap<String, Vec<i16>>,
     dim: usize,
 ) -> Option<String> {
@@ -481,6 +475,7 @@ fn solve_cube_by_solver(
 
     // println!("raw_solution {}", sol);
     // join M[m] for m in sol.split(" ") with "."
+    let move_map = move_translation(dim);
     let mut mmoves = sol
         .split(" ")
         .map(|m| move_map[m].clone())
@@ -570,7 +565,6 @@ fn solve_cube(
     current_solution: &String,
     dim: usize,
 ) -> Option<String> {
-    let move_map = move_translation(dim);
     let init_state = &puzzle.initial_state;
     let sol_state = &puzzle.solution_state;
 
@@ -583,9 +577,9 @@ fn solve_cube(
         return None;
     }
     if dim <= 8 {
-        solve_cube_by_solver(init_state, sol_state, &move_map, allowed_moves, dim)
+        solve_cube_by_solver(init_state, sol_state, allowed_moves, dim)
     } else {
-        solve_cube_by_rule(puzzle, &move_map, allowed_moves, current_solution, dim)
+        solve_cube_by_rule(puzzle, allowed_moves, current_solution, dim)
     }
 }
 
