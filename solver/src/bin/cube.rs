@@ -175,6 +175,142 @@ fn solve_cube_edges(
     (state, moves)
 }
 
+fn solve_cube_by_solver_with_center_rot(
+    puzzle: &solver::Puzzle,
+    allowed_moves: &HashMap<String, Vec<i16>>,
+    dim: usize,
+) -> Option<String> {
+    if dim % 2 == 0 {
+        return solve_cube_by_solver(
+            &puzzle.initial_state,
+            &puzzle.solution_state,
+            allowed_moves,
+            dim,
+        );
+    }
+    let (piece_map, piece_list) = solver::gen_piece_map(&puzzle.solution_state);
+    let actions = cube_moves::create_actions(&allowed_moves);
+    let init_state = solver::state_to_list(&puzzle.initial_state, &piece_map);
+    let sol_state = solver::state_to_list(&puzzle.solution_state, &piece_map);
+    fn valid_state(state: &Vec<usize>, sol_state: &Vec<usize>, dim: usize) -> bool {
+        let half = dim / 2;
+        let idx_offset = half * dim + half;
+        for i in 0..6 {
+            if state[i * dim * dim + idx_offset] != sol_state[i * dim * dim + idx_offset] {
+                return false;
+            }
+        }
+        true
+    }
+    fn evaluate(
+        cur_state: &Vec<usize>,
+        sol_state: &String,
+        allowed_moves: &HashMap<String, Vec<i16>>,
+        piece_list: &Vec<&str>,
+        dim: usize,
+    ) -> Option<String> {
+        let init_state = cur_state
+            .iter()
+            .map(|i| piece_list[*i])
+            .collect::<Vec<&str>>()
+            .join(";");
+        solve_cube_by_solver(&init_state, sol_state, allowed_moves, dim)
+    }
+    let half = dim / 2;
+    let action_list = [
+        format!("f{}", half),
+        format!("r{}", half),
+        format!("d{}", half),
+        format!("-f{}", half),
+        format!("-r{}", half),
+        format!("-d{}", half),
+    ];
+
+    let mut best_move: Option<String> = None;
+    let mut best_cost = 100000000;
+    if valid_state(&init_state, &sol_state, dim) {
+        if let Some(cur_move) = evaluate(
+            &init_state,
+            &puzzle.solution_state,
+            allowed_moves,
+            &piece_list,
+            dim,
+        ) {
+            let len = cur_move.split(".").collect::<Vec<&str>>().len();
+            if len < best_cost {
+                best_move = Some(cur_move);
+                best_cost = len;
+            }
+        }
+    }
+    let mut cur_state = init_state.clone();
+    for (idx0, act0) in action_list.iter().enumerate() {
+        cur_state = cube_moves::apply_action(&cur_state, &actions[act0]);
+        if valid_state(&cur_state, &sol_state, dim) {
+            if let Some(cur_move) = evaluate(
+                &cur_state,
+                &puzzle.solution_state,
+                allowed_moves,
+                &piece_list,
+                dim,
+            ) {
+                let len = cur_move.split(".").collect::<Vec<&str>>().len();
+                if len + 1 < best_cost {
+                    best_move = Some(format!("{}.{}", act0, cur_move));
+                    best_cost = len + 1;
+                }
+            }
+        }
+        for (idx1, act1) in action_list.iter().enumerate() {
+            if (idx1 + 3) % 6 == idx0 {
+                continue;
+            }
+            cur_state = cube_moves::apply_action(&cur_state, &actions[act1]);
+            if valid_state(&cur_state, &sol_state, dim) {
+                if let Some(cur_move) = evaluate(
+                    &cur_state,
+                    &puzzle.solution_state,
+                    allowed_moves,
+                    &piece_list,
+                    dim,
+                ) {
+                    let len = cur_move.split(".").collect::<Vec<&str>>().len();
+                    if len + 2 < best_cost {
+                        best_move = Some(format!("{}.{}.{}", act0, act1, cur_move));
+                        best_cost = len + 2;
+                    }
+                }
+            }
+            for (idx2, act2) in action_list.iter().enumerate() {
+                if (idx2 + 3) % 6 == idx1 {
+                    continue;
+                }
+                cur_state = cube_moves::apply_action(&cur_state, &actions[act2]);
+                if valid_state(&cur_state, &sol_state, dim) {
+                    if let Some(cur_move) = evaluate(
+                        &cur_state,
+                        &puzzle.solution_state,
+                        allowed_moves,
+                        &piece_list,
+                        dim,
+                    ) {
+                        let len = cur_move.split(".").collect::<Vec<&str>>().len();
+                        if len + 3 < best_cost {
+                            best_move = Some(format!("{}.{}.{}.{}", act0, act1, act2, cur_move));
+                            best_cost = len + 3;
+                        }
+                    }
+                }
+                cur_state =
+                    cube_moves::apply_action(&cur_state, &actions[&cube_moves::rev_move(act2)]);
+            }
+            cur_state = cube_moves::apply_action(&cur_state, &actions[&cube_moves::rev_move(act1)]);
+        }
+        cur_state = cube_moves::apply_action(&cur_state, &actions[&cube_moves::rev_move(act0)]);
+    }
+    best_move
+}
+
 fn solve_cube_by_rule(
     puzzle: &solver::Puzzle,
     allowed_moves: &HashMap<String, Vec<i16>>,
@@ -402,7 +538,6 @@ fn solve_cube(
     current_solution: &String,
     dim: usize,
 ) -> Option<String> {
-    let init_state = &puzzle.initial_state;
     let sol_state = &puzzle.solution_state;
 
     let checker_cube = sol_state.starts_with("A;B;A;B;A;B;A;B;A");
@@ -414,7 +549,7 @@ fn solve_cube(
         return None;
     }
     if dim <= 7 {
-        solve_cube_by_solver(init_state, sol_state, allowed_moves, dim)
+        solve_cube_by_solver_with_center_rot(puzzle, allowed_moves, dim)
     } else {
         solve_cube_by_rule(puzzle, allowed_moves, current_solution, dim)
     }
