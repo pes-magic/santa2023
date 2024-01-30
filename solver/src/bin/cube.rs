@@ -7,144 +7,6 @@
 use std::collections::HashMap;
 
 mod cube_moves;
-use cube_moves::P3;
-
-fn index_to_p3(idx: usize, dim: usize) -> P3 {
-    let face = idx / dim.pow(2);
-    let row = idx % dim.pow(2) / dim;
-    let col = idx % dim;
-    let end = dim - 1;
-    match face {
-        0 => P3::new(col, end - row, end),       // U
-        1 => P3::new(col, 0, end - row),         // F
-        2 => P3::new(end, col, end - row),       // R
-        3 => P3::new(end - col, end, end - row), // B
-        4 => P3::new(0, end - col, end - row),   // L
-        5 => P3::new(col, row, 0),               // D
-        _ => panic!("Invalid face"),
-    }
-}
-
-fn calc_movable(actions: &HashMap<String, Vec<i16>>) -> Vec<Vec<usize>> {
-    let piece_num = actions.values().next().unwrap().len();
-    let mut movable = vec![Vec::new(); piece_num];
-    for i in 0..piece_num {
-        let mut qu = std::collections::VecDeque::new();
-        movable[i].push(i);
-        qu.push_back(i);
-        let mut visited = vec![false; piece_num];
-        visited[i] = true;
-        while let Some(v) = qu.pop_front() {
-            for action in actions.values() {
-                let dst = action[v] as usize;
-                if !visited[dst] {
-                    visited[dst] = true;
-                    qu.push_back(dst);
-                    movable[i].push(dst);
-                }
-            }
-        }
-    }
-    movable
-}
-
-fn solve_while_middle(
-    cur_state: &Vec<usize>,
-    sol_state: &Vec<usize>,
-    allowed_moves_inv: &HashMap<String, &Vec<i16>>,
-    actions: &HashMap<String, Vec<(usize, usize)>>,
-    movable_pos: &Vec<Vec<usize>>,
-    dim: usize,
-) -> (Vec<usize>, Vec<String>) {
-    let mut state = cur_state.clone();
-    let mut moves = Vec::new();
-
-    for i in 1..dim - 1 {
-        for j in 1..dim - 1 {
-            let target_index = (dim + i) * dim + j;
-            if state[target_index] == sol_state[target_index] {
-                continue;
-            }
-            let mut cur_index = 0;
-            for k in movable_pos[target_index].iter() {
-                if dim * dim <= *k && *k <= target_index {
-                    continue;
-                }
-                if state[*k] == sol_state[target_index] {
-                    cur_index = *k;
-                    break;
-                }
-            }
-            if cur_index == 0 {
-                panic!("source index not found");
-            }
-            let target_p3 = index_to_p3(target_index, dim);
-            while cur_index != target_index {
-                let cur_p3 = index_to_p3(cur_index, dim);
-                let m = cube_moves::solve_white_middle_impl(&cur_p3, &target_p3, dim);
-                for act in m.iter() {
-                    let action = &actions[act];
-                    state = cube_moves::apply_action(&state, action);
-                    cur_index = allowed_moves_inv[act][cur_index] as usize;
-                    moves.push(act.clone());
-                }
-            }
-        }
-    }
-    (state, moves)
-}
-
-fn solve_yellow_middle(
-    cur_state: &Vec<usize>,
-    sol_state: &Vec<usize>,
-    allowed_moves_inv: &HashMap<String, &Vec<i16>>,
-    actions: &HashMap<String, Vec<(usize, usize)>>,
-    movable_pos: &Vec<Vec<usize>>,
-    dim: usize,
-) -> (Vec<usize>, Vec<String>) {
-    let mut state = cur_state.clone();
-    let mut moves = Vec::new();
-
-    for i in 1..dim - 1 {
-        for j in (1..dim - 1).rev() {
-            let target_index = (3 * dim + i) * dim + j;
-            if state[target_index] == sol_state[target_index] {
-                continue;
-            }
-            let mut cur_index = 0;
-            for k in movable_pos[target_index].iter() {
-                if dim * dim <= *k && *k < 2 * dim * dim {
-                    continue;
-                }
-                if 3 * dim * dim <= *k && *k < 3 * dim * dim + i * dim {
-                    continue;
-                }
-                if 3 * dim * dim + i * dim + j <= *k && *k < 3 * dim * dim + (i + 1) * dim {
-                    continue;
-                }
-                if state[*k] == sol_state[target_index] {
-                    cur_index = *k;
-                    break;
-                }
-            }
-            if cur_index == 0 {
-                panic!("source index not found");
-            }
-            let target_p3 = index_to_p3(target_index, dim);
-            while cur_index != target_index {
-                let cur_p3 = index_to_p3(cur_index, dim);
-                let m = cube_moves::solve_yellow_middle_impl(&cur_p3, &target_p3, dim);
-                for act in m.iter() {
-                    let action = &actions[act];
-                    state = cube_moves::apply_action(&state, action);
-                    cur_index = allowed_moves_inv[act][cur_index] as usize;
-                    moves.push(act.clone());
-                }
-            }
-        }
-    }
-    (state, moves)
-}
 
 fn move_translation(dim: usize) -> HashMap<String, String> {
     let mut m: HashMap<String, String> = HashMap::new();
@@ -323,7 +185,6 @@ fn solve_cube_by_rule(
     let actions = cube_moves::create_actions(&allowed_moves);
     let init_state = solver::state_to_list(&puzzle.initial_state, &piece_map);
     let sol_state = solver::state_to_list(&puzzle.solution_state, &piece_map);
-    let movable_pos = calc_movable(&allowed_moves);
     let mut allowed_moves_inv = HashMap::new();
     for (k, v) in allowed_moves.iter() {
         if k.starts_with("-") {
@@ -334,36 +195,12 @@ fn solve_cube_by_rule(
     }
     let mut state = init_state.clone();
     let mut moves = Vec::new();
-    let (end_state, m) = solve_while_middle(
-        &state,
-        &sol_state,
-        &allowed_moves_inv,
-        &actions,
-        &movable_pos,
-        dim,
-    );
+    let (end_state, m) = cube_moves::solve_first_two_faces(&state, &sol_state, &actions, dim);
     state = end_state;
     moves.extend(m);
 
     println!(
-        "end white: {}",
-        solver::cancel_moves_in_cube(&moves.join("."))
-            .split(".")
-            .collect::<Vec<&str>>()
-            .len()
-    );
-    let (end_state, m) = solve_yellow_middle(
-        &state,
-        &sol_state,
-        &allowed_moves_inv,
-        &actions,
-        &movable_pos,
-        dim,
-    );
-    state = end_state;
-    moves.extend(m);
-    println!(
-        "end yellow: {}",
+        "end first two: {}",
         solver::cancel_moves_in_cube(&moves.join("."))
             .split(".")
             .collect::<Vec<&str>>()
@@ -373,7 +210,7 @@ fn solve_cube_by_rule(
     state = end_state;
     moves.extend(m);
     println!(
-        "end green: {}",
+        "end four: {}",
         solver::cancel_moves_in_cube(&moves.join("."))
             .split(".")
             .collect::<Vec<&str>>()
@@ -576,7 +413,7 @@ fn solve_cube(
     if distinct_cube {
         return None;
     }
-    if dim <= 8 {
+    if dim <= 7 {
         solve_cube_by_solver(init_state, sol_state, allowed_moves, dim)
     } else {
         solve_cube_by_rule(puzzle, allowed_moves, current_solution, dim)

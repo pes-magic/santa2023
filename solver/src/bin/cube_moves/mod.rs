@@ -11,14 +11,23 @@ use once_cell::sync::Lazy;
 
 use crate::cube_moves;
 
-static BFS_FOUR_CORNER: Lazy<(Vec<Option<usize>>, Vec<Option<usize>>)> =
+static BFS_FOUR_CORNER: Lazy<(Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>)> =
     Lazy::new(|| bfs_four_corner_impl());
 
-static BFS_FOUR_EDGE: Lazy<(Vec<Option<usize>>, Vec<Option<usize>>)> =
+static BFS_FOUR_EDGE: Lazy<(Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>)> =
     Lazy::new(|| bfs_four_edge_impl());
 
 static PERM_FOUR_CORNER: Lazy<(Vec<u32>, HashMap<u32, usize>)> =
     Lazy::new(|| gen_perm_map_four_faces_impl());
+
+static BFS_FIRST_TWO_CORNER: Lazy<(Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>)> =
+    Lazy::new(|| bfs_first_two_corner_impl());
+
+static BFS_FIRST_TWO_EDGE: Lazy<(Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>)> =
+    Lazy::new(|| bfs_first_two_edge_impl());
+
+static PERM_FIRST_TWO_CORNER: Lazy<(Vec<u64>, HashMap<u64, usize>)> =
+    Lazy::new(|| gen_perm_map_first_two_faces_impl());
 
 #[allow(dead_code)]
 pub fn rev_move(s: &String) -> String {
@@ -382,6 +391,128 @@ pub fn solve_yellow_middle_impl(current: &P3, solved: &P3, dim: usize) -> Vec<St
     res
 }
 
+fn solve_first_two_faces_impl(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    actions: &HashMap<String, Vec<(usize, usize)>>,
+    dim: usize,
+) -> (Vec<usize>, Vec<String>) {
+    let mut state = cur_state.clone();
+    let mut moves = Vec::new();
+    let (end_state, m) = solve_first_two_faces_corner(&state, sol_state, actions, dim);
+    state = end_state;
+    moves.extend(m);
+    let (end_state, m) = solve_first_two_faces_edge(&state, sol_state, actions, dim);
+    state = end_state;
+    moves.extend(m);
+    (state, moves)
+}
+
+#[allow(dead_code)]
+pub fn solve_first_two_faces(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    actions: &HashMap<String, Vec<(usize, usize)>>,
+    dim: usize,
+) -> (Vec<usize>, Vec<String>) {
+    if dim % 2 == 0 {
+        return solve_first_two_faces_impl(&cur_state, sol_state, actions, dim);
+    }
+    let half = dim / 2;
+    let action_list = [
+        format!("f{}", half),
+        format!("r{}", half),
+        format!("d{}", half),
+        format!("-f{}", half),
+        format!("-r{}", half),
+        format!("-d{}", half),
+    ];
+    fn evaluate(
+        cur_state: &Vec<usize>,
+        sol_state: &Vec<usize>,
+        actions: &HashMap<String, Vec<(usize, usize)>>,
+        dim: usize,
+        offset_cost: i32,
+    ) -> (Vec<usize>, Vec<String>, i32) {
+        let (mid_state, m) = solve_first_two_faces_impl(&cur_state, sol_state, actions, dim);
+        let post_cost = solve_four_faces_impl(&mid_state, sol_state, actions, dim)
+            .1
+            .len() as i32;
+        let cost = m.len() as i32 + post_cost + offset_cost;
+        (mid_state, m, cost)
+    }
+    fn valid_state(state: &Vec<usize>, sol_state: &Vec<usize>, dim: usize) -> bool {
+        let half = dim / 2;
+        let idx_offset = half * dim + half;
+        for i in 0..6 {
+            if state[i * dim * dim + idx_offset] != sol_state[i * dim * dim + idx_offset] {
+                return false;
+            }
+        }
+        true
+    }
+    let mut best_end_state = Vec::new();
+    let mut best_move = Vec::new();
+    let mut best_cost = 100000000;
+    if valid_state(cur_state, sol_state, dim) {
+        (best_end_state, best_move, best_cost) = evaluate(cur_state, sol_state, actions, dim, 0);
+    }
+    let mut state = cur_state.clone();
+    for (idx0, act0) in action_list.iter().enumerate() {
+        state = apply_action(&state, &actions[act0]);
+        if valid_state(&state, sol_state, dim) {
+            let (end_state, m, cost) = evaluate(&state, sol_state, actions, dim, 1);
+            if cost < best_cost {
+                best_end_state = end_state;
+                best_move.clear();
+                best_move.push(act0.clone());
+                best_move.extend(m);
+                best_cost = cost;
+            }
+        }
+        for (idx1, act1) in action_list.iter().enumerate() {
+            if (idx1 + 3) % 6 == idx0 {
+                continue;
+            }
+            state = apply_action(&state, &actions[act1]);
+            if valid_state(&state, sol_state, dim) {
+                let (end_state, m, cost) = evaluate(&state, sol_state, actions, dim, 2);
+                if cost < best_cost {
+                    best_end_state = end_state;
+                    best_move.clear();
+                    best_move.push(act0.clone());
+                    best_move.push(act1.clone());
+                    best_move.extend(m);
+                    best_cost = cost;
+                }
+            }
+            for (idx2, act2) in action_list.iter().enumerate() {
+                if (idx2 + 3) % 6 == idx1 {
+                    continue;
+                }
+                state = apply_action(&state, &actions[act2]);
+                if valid_state(&state, sol_state, dim) {
+                    let (end_state, m, cost) = evaluate(&state, sol_state, actions, dim, 3);
+                    if cost < best_cost {
+                        best_end_state = end_state;
+                        best_move.clear();
+                        best_move.push(act0.clone());
+                        best_move.push(act1.clone());
+                        best_move.push(act2.clone());
+                        best_move.extend(m);
+                        best_cost = cost;
+                    }
+                }
+                state = apply_action(&state, &actions[&rev_move(act2)]);
+            }
+            state = apply_action(&state, &actions[&rev_move(act1)]);
+        }
+
+        state = apply_action(&state, &actions[&rev_move(act0)]);
+    }
+    (best_end_state, best_move)
+}
+
 #[allow(dead_code)]
 pub fn solve_four_faces_impl(
     cur_state: &Vec<usize>,
@@ -459,14 +590,54 @@ pub fn apply_perm_inv(state: &Vec<u8>, perm: &Vec<usize>) -> Vec<u8> {
     res
 }
 
-fn calc_permutation_idx_four_corner(
+fn calc_permutation_idx_first_two_impl(
     cur_state: &Vec<usize>,
     sol_state: &Vec<usize>,
-    perm_map: &HashMap<u32, usize>,
+    perm_map: &HashMap<u64, usize>,
+    target_idx: &Vec<usize>,
+) -> usize {
+    let mut p = Vec::new();
+    for i in 0..target_idx.len() {
+        if cur_state[target_idx[i]] == sol_state[target_idx[4]] {
+            p.push(0);
+        } else if cur_state[target_idx[i]] == sol_state[target_idx[12]] {
+            p.push(1);
+        } else {
+            p.push(2);
+        }
+    }
+    perm_map[&pack_perm_for_first_two_faces(&p)]
+}
+
+fn calc_permutation_idx_first_two_corner(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    perm_map: &HashMap<u64, usize>,
     dim: usize,
     pos: usize,
 ) -> usize {
-    let target_idx = target_idx_four_corner(dim, pos);
+    let target_idx = target_idx_corner(dim, pos, &(0..6).collect());
+    calc_permutation_idx_first_two_impl(cur_state, sol_state, perm_map, &target_idx)
+}
+
+fn calc_permutation_idx_first_two_edge(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    perm_map: &HashMap<u64, usize>,
+    dim: usize,
+    y: usize,
+    x: usize,
+) -> usize {
+    let target_idx = target_idx_edge(dim, y, x, &(0..6).collect());
+    calc_permutation_idx_first_two_impl(cur_state, sol_state, perm_map, &target_idx)
+}
+
+fn calc_permutation_idx_four_impl(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    perm_map: &HashMap<u32, usize>,
+    target_idx: &Vec<usize>,
+) -> usize {
     let mut p = Vec::new();
     for i in 0..target_idx.len() {
         if cur_state[target_idx[i]] == sol_state[target_idx[0]] {
@@ -480,6 +651,17 @@ fn calc_permutation_idx_four_corner(
         }
     }
     perm_map[&pack_perm_for_four_faces(&p)]
+}
+
+fn calc_permutation_idx_four_corner(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    perm_map: &HashMap<u32, usize>,
+    dim: usize,
+    pos: usize,
+) -> usize {
+    let target_idx = target_idx_four_corner(dim, pos);
+    calc_permutation_idx_four_impl(cur_state, sol_state, perm_map, &target_idx)
 }
 
 fn calc_permutation_idx_four_edge(
@@ -491,19 +673,89 @@ fn calc_permutation_idx_four_edge(
     x: usize,
 ) -> usize {
     let target_idx = target_idx_four_edge(dim, y, x);
-    let mut p = Vec::new();
-    for i in 0..target_idx.len() {
-        if cur_state[target_idx[i]] == sol_state[target_idx[0]] {
-            p.push(0);
-        } else if cur_state[target_idx[i]] == sol_state[target_idx[4]] {
-            p.push(1);
-        } else if cur_state[target_idx[i]] == sol_state[target_idx[8]] {
-            p.push(2);
-        } else {
-            p.push(3);
+    calc_permutation_idx_four_impl(cur_state, sol_state, perm_map, &target_idx)
+}
+
+fn solve_first_two_faces_corner(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    actions: &HashMap<String, Vec<(usize, usize)>>,
+    dim: usize,
+) -> (Vec<usize>, Vec<String>) {
+    let (_, perm_map) = gen_perm_map_first_two_faces();
+    let (prev_state, prev_action, cost_table) = bfs_first_two_corner();
+    let mut state = cur_state.clone();
+    let mut moves_str = Vec::new();
+    for pos in (1..=dim / 2 - 1).rev() {
+        let perm_idx: usize =
+            calc_permutation_idx_first_two_corner(&state, sol_state, &perm_map, dim, pos);
+        let mut state_idx = perm_idx;
+        let moves = sequence_moves_first_two_corner(dim, pos);
+        let mut action_idxes = Vec::new();
+        while let Some(next_index) = prev_state[state_idx] {
+            action_idxes.push(prev_action[state_idx].unwrap());
+            state_idx = next_index;
+        }
+        assert!(cost_table[state_idx] == 0);
+        for action_idx in action_idxes.iter() {
+            let action = &moves[*action_idx];
+            for act in action.iter().rev() {
+                let inv_act = rev_move(act);
+                if !actions.contains_key(inv_act.as_str()) {
+                    println!("{}", inv_act);
+                }
+                let action = &actions[inv_act.as_str()];
+                state = apply_action(&state, action);
+                moves_str.push(inv_act);
+            }
         }
     }
-    perm_map[&pack_perm_for_four_faces(&p)]
+    (state, moves_str)
+}
+
+fn solve_first_two_faces_edge(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    actions: &HashMap<String, Vec<(usize, usize)>>,
+    dim: usize,
+) -> (Vec<usize>, Vec<String>) {
+    let (_, perm_map) = gen_perm_map_first_two_faces();
+    let (prev_state, prev_action, cost_table) = bfs_first_two_edge();
+    let mut state = cur_state.clone();
+    let mut moves_str = Vec::new();
+    for y in 1..dim / 2 {
+        for x in y + 1..dim - 1 - y {
+            let perm_idx =
+                calc_permutation_idx_first_two_edge(&state, sol_state, &perm_map, dim, y, x);
+
+            let mut state_idx = perm_idx;
+
+            let moves = sequence_moves_first_two_edge(dim, y, x);
+
+            let mut action_idxes = Vec::new();
+            let mut qu = std::collections::VecDeque::new();
+            while let Some(next_index) = prev_state[state_idx] {
+                action_idxes.push(prev_action[state_idx].unwrap());
+                state_idx = next_index;
+                qu.push_back(state_idx);
+            }
+            assert!(cost_table[state_idx] == 0);
+            for action_idx in action_idxes.iter() {
+                let action = &moves[*action_idx];
+                for act in action.iter().rev() {
+                    let inv_act = rev_move(act);
+                    if !actions.contains_key(inv_act.as_str()) {
+                        println!("{}", inv_act);
+                    }
+                    let action = &actions[inv_act.as_str()];
+                    state = apply_action(&state, action);
+                    moves_str.push(inv_act);
+                }
+            }
+        }
+    }
+
+    (state, moves_str)
 }
 
 fn solve_four_faces_corner(
@@ -513,7 +765,7 @@ fn solve_four_faces_corner(
     dim: usize,
 ) -> (Vec<usize>, Vec<String>) {
     let (_, perm_map) = gen_perm_map_four_faces();
-    let (prev_state, prev_action) = bfs_four_corner();
+    let (prev_state, prev_action, _) = bfs_four_corner();
     let mut state = cur_state.clone();
     let mut moves_str = Vec::new();
     for pos in (1..=dim / 2 - 1).rev() {
@@ -548,7 +800,7 @@ fn solve_four_faces_edge(
     dim: usize,
 ) -> (Vec<usize>, Vec<String>) {
     let (_, perm_map) = gen_perm_map_four_faces();
-    let (prev_state, prev_action) = bfs_four_edge();
+    let (prev_state, prev_action, _) = bfs_four_edge();
     let mut state = cur_state.clone();
     let mut moves_str = Vec::new();
     for y in 1..dim / 2 {
@@ -569,11 +821,7 @@ fn solve_four_faces_edge(
             for action_idx in action_idxes.iter() {
                 let action = &moves[*action_idx];
                 for act in action.iter().rev() {
-                    let inv_act = if act.starts_with("-") {
-                        act[1..].to_string()
-                    } else {
-                        format!("-{}", act)
-                    };
+                    let inv_act = rev_move(act);
                     if !actions.contains_key(inv_act.as_str()) {
                         println!("{}", inv_act);
                     }
@@ -598,6 +846,14 @@ fn pack_perm_for_four_faces(perm: &Vec<usize>) -> u32 {
     res
 }
 
+fn pack_perm_for_first_two_faces(perm: &Vec<usize>) -> u64 {
+    let mut res = 0;
+    for i in 0..perm.len() {
+        res |= (perm[i] as u64) << (2 * i);
+    }
+    res
+}
+
 #[allow(dead_code)]
 fn unpack_perm_for_four_faces(packed_perm: u32) -> Vec<usize> {
     let mut res = Vec::new();
@@ -609,10 +865,29 @@ fn unpack_perm_for_four_faces(packed_perm: u32) -> Vec<usize> {
     res
 }
 
+#[allow(dead_code)]
+fn unpack_perm_for_first_two_faces(packed_perm: u64) -> Vec<usize> {
+    let mut res = Vec::new();
+    let mut p = packed_perm;
+    for _ in 0..24 {
+        res.push(p as usize % 4);
+        p /= 4;
+    }
+    res
+}
+
 fn apply_action_to_packed_perm(packed_perm: u32, action: &Vec<usize>) -> u32 {
     let mut res = 0;
     for i in 0..16 {
         res |= ((packed_perm >> (2 * action[i] as u32)) % 4) << (2 * i);
+    }
+    res
+}
+
+fn apply_action_to_packed_perm64(packed_perm: u64, action: &Vec<usize>) -> u64 {
+    let mut res = 0;
+    for i in 0..24 {
+        res |= ((packed_perm >> (2 * action[i] as u64)) % 4) << (2 * i);
     }
     res
 }
@@ -951,6 +1226,22 @@ pub fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<Strin
     res
 }
 
+fn sequence_moves_first_two_corner(dim: usize, pos: usize) -> Vec<Vec<String>> {
+    let base = sequence_moves_four_corner(dim, pos);
+    let mut res = base.clone();
+    res.extend(base.iter().map(|v| rot_sequence_r(v, dim)));
+    res.extend(base.iter().map(|v| rot_sequence_d(v, dim)));
+    res
+}
+
+fn sequence_moves_first_two_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> {
+    let base = sequence_moves_four_edge(dim, y, x);
+    let mut res = base.clone();
+    res.extend(base.iter().map(|v| rot_sequence_r(v, dim)));
+    res.extend(base.iter().map(|v| rot_sequence_d(v, dim)));
+    res
+}
+
 #[allow(dead_code)]
 pub fn generate_four_corner_move_for_bfs(allowed_moves: &HashMap<String, Vec<i16>>, dim: usize) {
     let mut result = None;
@@ -1000,11 +1291,69 @@ pub fn generate_four_corner_move_for_bfs(allowed_moves: &HashMap<String, Vec<i16
             assert!(result == Some(cur_result));
         }
     }
+    let res = result.unwrap();
     println!("[");
-    for r in result.unwrap() {
+    for r in &res {
         println!("(Vec::from({:?}), {}),", r.0, r.1)
     }
     println!("]");
+    let serialized = serde_json::to_string(&res).unwrap();
+    std::fs::write("generate_four_corner_move_for_bfs.json", serialized).ok();
+}
+
+#[allow(dead_code)]
+pub fn generate_first_two_corner_move_for_bfs(
+    allowed_moves: &HashMap<String, Vec<i16>>,
+    dim: usize,
+) {
+    let mut result = None;
+    let actions = create_actions(&allowed_moves);
+    for pos in (1..=dim / 2 - 1).rev() {
+        let target_idx = target_idx_corner(dim, pos, &(0..6).collect());
+        let mut idx_map = std::collections::HashMap::new();
+        for i in 0..target_idx.len() {
+            idx_map.insert(target_idx[i], i);
+        }
+        let mut cur_result = Vec::new();
+        let sequences = sequence_moves_first_two_corner(dim, pos);
+        for sequence in sequences.iter() {
+            let mut state = allowed_moves[&sequence[0]]
+                .iter()
+                .map(|v| *v as usize)
+                .collect::<Vec<usize>>();
+            for i in 1..sequence.len() {
+                state = apply_action(&state, &actions[&sequence[i]]);
+            }
+
+            for face in 0..6 {
+                for i in pos + 1..=dim / 2 {
+                    let rev_i = dim - 1 - i;
+                    assert!(state[face * dim * dim + i * dim + i] / (dim * dim) == face);
+                    assert!(state[face * dim * dim + i * dim + rev_i] / (dim * dim) == face);
+                    assert!(state[face * dim * dim + rev_i * dim + i] / (dim * dim) == face);
+                    assert!(state[face * dim * dim + rev_i * dim + rev_i] / (dim * dim) == face);
+                }
+            }
+            let mut cur_move = Vec::new();
+            for idx in target_idx.iter() {
+                cur_move.push(idx_map[&state[*idx]]);
+            }
+            cur_result.push((cur_move, sequence.len()));
+        }
+        if result.is_none() {
+            result = Some(cur_result);
+        } else {
+            assert!(result == Some(cur_result));
+        }
+    }
+    let res = result.unwrap();
+    println!("[");
+    for r in &res {
+        println!("(Vec::from({:?}), {}),", r.0, r.1)
+    }
+    println!("]");
+    let serialized = serde_json::to_string(&res).unwrap();
+    std::fs::write("generate_first_two_corner_move_for_bfs.json", serialized).ok();
 }
 
 #[allow(dead_code)]
@@ -1070,11 +1419,80 @@ pub fn generate_four_edge_move_for_bfs(allowed_moves: &HashMap<String, Vec<i16>>
             }
         }
     }
+    let res = result.unwrap();
     println!("[");
-    for r in result.unwrap() {
+    for r in &res {
         println!("(Vec::from({:?}), {}),", r.0, r.1)
     }
     println!("]");
+    let serialized = serde_json::to_string(&res).unwrap();
+    std::fs::write("generate_four_edge_move_for_bfs.json", serialized).ok();
+}
+
+#[allow(dead_code)]
+pub fn generate_first_two_edge_move_for_bfs(allowed_moves: &HashMap<String, Vec<i16>>, dim: usize) {
+    let mut result = None;
+    let actions = create_actions(&allowed_moves);
+    for y in 1..dim / 2 {
+        for x in y + 1..dim - 1 - y {
+            let target_idx = target_idx_edge(dim, y, x, &(0..6).collect());
+            let mut idx_map = std::collections::HashMap::new();
+            for i in 0..target_idx.len() {
+                idx_map.insert(target_idx[i], i);
+            }
+            let mut cur_result = Vec::new();
+            let sequences = sequence_moves_first_two_edge(dim, y, x);
+            for sequence in sequences.iter() {
+                let mut state = allowed_moves[&sequence[0]]
+                    .iter()
+                    .map(|v| *v as usize)
+                    .collect::<Vec<usize>>();
+                for i in 1..sequence.len() {
+                    state = apply_action(&state, &actions[&sequence[i]]);
+                }
+
+                if sequence.len() >= 2 {
+                    for face in 0..6 {
+                        for i in 1..dim - 1 {
+                            for j in 1..dim - 1 {
+                                let idx = face * dim * dim + i * dim + j;
+                                if idx_map.contains_key(&idx) {
+                                    continue;
+                                }
+                                let idx1 = face * dim * dim + j * dim + dim - 1 - i;
+                                let idx2 = face * dim * dim + (dim - 1 - i) * dim + dim - 1 - j;
+                                let idx3 = face * dim * dim + (dim - 1 - j) * dim + i;
+                                assert!(
+                                    state[idx] == idx
+                                        || state[idx1] == idx
+                                        || state[idx2] == idx
+                                        || state[idx3] == idx
+                                );
+                            }
+                        }
+                    }
+                }
+                let mut cur_move = Vec::new();
+                for idx in target_idx.iter() {
+                    cur_move.push(idx_map[&state[*idx]]);
+                }
+                cur_result.push((cur_move, sequence.len()));
+            }
+            if result.is_none() {
+                result = Some(cur_result);
+            } else {
+                assert!(result == Some(cur_result));
+            }
+        }
+    }
+    let res = result.unwrap();
+    println!("[");
+    for r in &res {
+        println!("(Vec::from({:?}), {}),", r.0, r.1)
+    }
+    println!("]");
+    let serialized = serde_json::to_string(&res).unwrap();
+    std::fs::write("generate_first_two_edge_move_for_bfs.json", serialized).ok();
 }
 
 fn gen_perm_map_four_faces_impl() -> (Vec<u32>, HashMap<u32, usize>) {
@@ -1116,199 +1534,47 @@ fn gen_perm_map_four_faces_impl() -> (Vec<u32>, HashMap<u32, usize>) {
     (perm_list, perm_map)
 }
 
+fn gen_perm_map_first_two_faces_impl() -> (Vec<u64>, HashMap<u64, usize>) {
+    let mut perm_list = Vec::new();
+    let mut perm_map = HashMap::new();
+
+    for pos0 in (0..24).combinations(4) {
+        let mut remain0 = Vec::new();
+        for i in 0..24 {
+            if !pos0.contains(&i) {
+                remain0.push(i);
+            }
+        }
+        for pos1 in remain0.iter().combinations(4) {
+            let mut p = vec![2; 24];
+            for pos in pos0.iter() {
+                p[*pos] = 0;
+            }
+            for pos in pos1.iter() {
+                p[**pos] = 1;
+            }
+            let p = pack_perm_for_first_two_faces(&p);
+            perm_map.insert(p, perm_list.len());
+            perm_list.push(p);
+        }
+    }
+
+    (perm_list, perm_map)
+}
+
 fn gen_perm_map_four_faces() -> (Vec<u32>, HashMap<u32, usize>) {
     PERM_FOUR_CORNER.clone()
 }
 
-fn bfs_four_corner_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
-    if std::path::Path::new("bfs_four_corner.json").exists() {
-        // ファイルが存在する場合、ファイルからデータを読み込む
-        let contents = std::fs::read_to_string("bfs_four_corner.json").unwrap();
-        let deserialized: (Vec<Option<usize>>, Vec<Option<usize>>) =
-            serde_json::from_str(&contents).unwrap();
-        return deserialized;
-    }
+fn gen_perm_map_first_two_faces() -> (Vec<u64>, HashMap<u64, usize>) {
+    PERM_FIRST_TWO_CORNER.clone()
+}
+
+fn bfs_four_impl(
+    actions: &Vec<(Vec<usize>, i32)>,
+) -> (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) {
     let (perm_list, perm_map) = gen_perm_map_four_faces();
     let mut priority_qu = BinaryHeap::new();
-    // generated by `generate_four_corner_move_for_bfs`
-    let actions = [
-        (
-            Vec::from([0, 1, 2, 3, 5, 6, 7, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
-            1,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
-            1,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8, 12, 13, 14, 15]),
-            1,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15]),
-            1,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12]),
-            1,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14]),
-            1,
-        ),
-        (
-            Vec::from([1, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            1,
-        ),
-        (
-            Vec::from([3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            1,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 5, 6, 15, 8, 9, 10, 11, 12, 13, 4, 14]),
-            3,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 15, 5, 6, 14, 8, 9, 10, 11, 12, 13, 7, 4]),
-            4,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 14, 5, 6, 4, 8, 9, 10, 11, 12, 13, 15, 7]),
-            3,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 13, 5, 7, 8, 9, 10, 11, 6, 12, 14, 15]),
-            3,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 12, 13, 7, 8, 9, 10, 11, 5, 6, 14, 15]),
-            4,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 6, 12, 7, 8, 9, 10, 11, 13, 5, 14, 15]),
-            3,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 9, 10, 13, 8, 12, 14, 15]),
-            3,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 13, 9, 10, 12, 11, 8, 14, 15]),
-            4,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 12, 9, 10, 8, 13, 11, 14, 15]),
-            3,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 15, 9, 11, 12, 13, 10, 14]),
-            3,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 15, 11, 12, 13, 9, 10]),
-            4,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 14, 11, 12, 13, 15, 9]),
-            3,
-        ),
-        (
-            Vec::from([10, 0, 2, 3, 4, 5, 6, 7, 8, 1, 9, 11, 12, 13, 14, 15]),
-            3,
-        ),
-        (
-            Vec::from([9, 10, 2, 3, 4, 5, 6, 7, 8, 0, 1, 11, 12, 13, 14, 15]),
-            4,
-        ),
-        (
-            Vec::from([1, 9, 2, 3, 4, 5, 6, 7, 8, 10, 0, 11, 12, 13, 14, 15]),
-            3,
-        ),
-        (
-            Vec::from([0, 1, 8, 2, 4, 5, 6, 7, 11, 9, 10, 3, 12, 13, 14, 15]),
-            3,
-        ),
-        (
-            Vec::from([0, 1, 11, 8, 4, 5, 6, 7, 3, 9, 10, 2, 12, 13, 14, 15]),
-            4,
-        ),
-        (
-            Vec::from([0, 1, 3, 11, 4, 5, 6, 7, 2, 9, 10, 8, 12, 13, 14, 15]),
-            3,
-        ),
-        (
-            Vec::from([0, 1, 6, 2, 4, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            3,
-        ),
-        (
-            Vec::from([0, 1, 5, 6, 4, 2, 3, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            4,
-        ),
-        (
-            Vec::from([0, 1, 3, 5, 4, 6, 2, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            3,
-        ),
-        (
-            Vec::from([4, 0, 2, 3, 7, 5, 6, 1, 8, 9, 10, 11, 12, 13, 14, 15]),
-            3,
-        ),
-        (
-            Vec::from([7, 4, 2, 3, 1, 5, 6, 0, 8, 9, 10, 11, 12, 13, 14, 15]),
-            4,
-        ),
-        (
-            Vec::from([1, 7, 2, 3, 0, 5, 6, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
-            3,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 5, 6, 8, 11, 9, 10, 4, 12, 13, 14, 15]),
-            5,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 8, 5, 6, 11, 4, 9, 10, 7, 12, 13, 14, 15]),
-            6,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 11, 5, 6, 4, 7, 9, 10, 8, 12, 13, 14, 15]),
-            5,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 10, 5, 7, 8, 6, 9, 11, 12, 13, 14, 15]),
-            5,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 9, 10, 7, 8, 5, 6, 11, 12, 13, 14, 15]),
-            6,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 6, 9, 7, 8, 10, 5, 11, 12, 13, 14, 15]),
-            5,
-        ),
-        (
-            Vec::from([13, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 12, 14, 15]),
-            5,
-        ),
-        (
-            Vec::from([12, 13, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 14, 15]),
-            6,
-        ),
-        (
-            Vec::from([1, 12, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 0, 14, 15]),
-            5,
-        ),
-        (
-            Vec::from([0, 1, 15, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 3, 14]),
-            5,
-        ),
-        (
-            Vec::from([0, 1, 14, 15, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 2, 3]),
-            6,
-        ),
-        (
-            Vec::from([0, 1, 3, 14, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 2]),
-            5,
-        ),
-    ];
     let start =
         pack_perm_for_four_faces(&Vec::from([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]));
     let mut prev_state: Vec<Option<usize>> = vec![None; perm_list.len()];
@@ -1349,8 +1615,21 @@ fn bfs_four_corner_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
     }
     println!("reachable: {}", reachable);
     println!("max_cost: {} {:?}", max_cost, perm_list[max_idx]);
+    (prev_state, prev_action, cost)
+}
 
-    let res = (prev_state, prev_action);
+fn bfs_four_corner_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) {
+    if std::path::Path::new("bfs_four_corner.json").exists() {
+        // ファイルが存在する場合、ファイルからデータを読み込む
+        let contents = std::fs::read_to_string("bfs_four_corner.json").unwrap();
+        let deserialized: (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) =
+            serde_json::from_str(&contents).unwrap();
+        return deserialized;
+    }
+    let contents = std::fs::read_to_string("generate_four_corner_move_for_bfs.json").unwrap();
+    let actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+
+    let res = bfs_four_impl(&actions);
     let serialized = serde_json::to_string(&res).unwrap();
     std::fs::write("bfs_four_corner.json", serialized).ok();
 
@@ -1358,585 +1637,43 @@ fn bfs_four_corner_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
 }
 
 #[allow(dead_code)]
-pub fn bfs_four_corner() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
+pub fn bfs_four_corner() -> (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) {
     BFS_FOUR_CORNER.clone()
 }
 
-fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
+fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) {
     if std::path::Path::new("bfs_four_edge.json").exists() {
         // ファイルが存在する場合、ファイルからデータを読み込む
         let contents = std::fs::read_to_string("bfs_four_edge.json").unwrap();
-        let deserialized: (Vec<Option<usize>>, Vec<Option<usize>>) =
+        let deserialized: (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) =
             serde_json::from_str(&contents).unwrap();
         return deserialized;
     }
-    let (perm_list, perm_map) = gen_perm_map_four_faces();
+    let contents = std::fs::read_to_string("generate_four_edge_move_for_bfs.json").unwrap();
+    let actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+
+    let res = bfs_four_impl(&actions);
+    let serialized = serde_json::to_string(&res).unwrap();
+    std::fs::write("bfs_four_edge.json", serialized).ok();
+
+    res
+}
+
+#[allow(dead_code)]
+pub fn bfs_four_edge() -> (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) {
+    BFS_FOUR_EDGE.clone()
+}
+
+fn bfs_first_two_impl(
+    actions: &Vec<(Vec<usize>, i32)>,
+) -> (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) {
+    // set face1 (front) and face3 (back)
+    let start = pack_perm_for_first_two_faces(&Vec::from([
+        2, 2, 2, 2, 0, 0, 0, 0, 2, 2, 2, 2, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2,
+    ]));
+
+    let (perm_list, perm_map) = gen_perm_map_first_two_faces();
     let mut priority_qu = BinaryHeap::new();
-    // generated by `generate_four_edge_move_for_bfs`
-    let actions = [
-        (
-            Vec::from([0, 1, 2, 3, 7, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
-            1,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 5, 6, 7, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
-            1,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15]),
-            1,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8, 12, 13, 14, 15]),
-            1,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14]),
-            1,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12]),
-            1,
-        ),
-        (
-            Vec::from([3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            1,
-        ),
-        (
-            Vec::from([1, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            1,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 4, 14, 6, 8, 9, 10, 11, 12, 13, 15, 5]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 5, 15, 7, 4, 8, 9, 10, 11, 12, 13, 6, 14]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 14, 6, 7, 4, 8, 9, 10, 11, 12, 5, 13, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 13, 5, 6, 8, 9, 10, 11, 12, 14, 4, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 3, 7, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 4, 2, 5, 6, 7, 3, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 7, 1, 3, 5, 6, 2, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 2, 6, 3, 7, 4, 5, 1, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 5, 6, 12, 4, 8, 9, 10, 11, 15, 13, 14, 7]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 4, 5, 15, 8, 9, 10, 11, 6, 13, 14, 12]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 12, 4, 5, 6, 8, 9, 10, 11, 13, 7, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 5, 6, 7, 13, 8, 9, 10, 11, 4, 12, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([3, 1, 2, 5, 0, 6, 7, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([4, 1, 2, 0, 7, 3, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([1, 5, 2, 3, 7, 4, 0, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([6, 0, 2, 3, 5, 1, 7, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 14, 9, 10, 8, 15, 12, 13, 11]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 9, 10, 15, 13, 14, 8, 12]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 10, 13, 11, 15, 12]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 12, 10, 14]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 12, 5, 6, 4, 8, 9, 10, 11, 15, 7, 13, 14]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 5, 6, 13, 8, 9, 10, 11, 4, 14, 15, 12]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 12, 6, 8, 9, 10, 11, 13, 14, 15, 7]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 7, 15, 8, 9, 10, 11, 6, 12, 13, 14]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 12, 8, 10, 11, 13, 14, 15, 9]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 15, 10, 11, 8, 12, 13, 14]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 11, 15, 9, 13, 14]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 8, 13, 9, 11, 10, 14, 15, 12]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 14, 4, 6, 7, 8, 9, 10, 11, 13, 5, 15, 12]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 5, 13, 6, 7, 8, 9, 10, 11, 15, 12, 4, 14]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 6, 14, 7, 8, 9, 10, 11, 15, 12, 13, 5]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 15, 5, 7, 8, 9, 10, 11, 13, 14, 6, 12]),
-            7,
-        ),
-        (
-            Vec::from([1, 11, 2, 3, 4, 5, 6, 7, 0, 8, 9, 10, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([8, 0, 2, 3, 4, 5, 6, 7, 9, 10, 11, 1, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([3, 1, 2, 11, 4, 5, 6, 7, 9, 10, 0, 8, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([10, 1, 2, 0, 4, 5, 6, 7, 11, 8, 9, 3, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 12, 10, 13, 9, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 13, 11, 8, 10, 12, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 12, 10, 11, 8, 15, 13, 14, 9]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 15, 9, 10, 8, 13, 14, 12]),
-            7,
-        ),
-        (
-            Vec::from([0, 9, 1, 3, 4, 5, 6, 7, 2, 10, 11, 8, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 2, 8, 3, 4, 5, 6, 7, 11, 1, 9, 10, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 3, 9, 4, 5, 6, 7, 11, 8, 2, 10, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 10, 2, 4, 5, 6, 7, 9, 3, 11, 8, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 14, 8, 12, 11, 13, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 13, 12, 14, 10, 15]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 14, 8, 9, 10, 12, 13, 15, 11]),
-            7,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 15, 12, 13, 8, 14]),
-            7,
-        ),
-        (
-            Vec::from([3, 5, 1, 2, 4, 6, 0, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([6, 2, 3, 0, 4, 1, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([1, 2, 3, 5, 0, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([4, 0, 1, 2, 5, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([3, 0, 1, 9, 4, 5, 6, 7, 8, 10, 2, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([1, 2, 10, 0, 4, 5, 6, 7, 8, 3, 9, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([1, 9, 3, 0, 4, 5, 6, 7, 2, 8, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([3, 0, 8, 2, 4, 5, 6, 7, 9, 1, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([1, 7, 3, 0, 4, 5, 2, 6, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([3, 0, 6, 2, 4, 5, 7, 1, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([3, 0, 1, 7, 2, 5, 6, 4, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([1, 2, 4, 0, 7, 5, 6, 3, 8, 9, 10, 11, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([1, 2, 3, 11, 4, 5, 6, 7, 8, 9, 0, 10, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([10, 0, 1, 2, 4, 5, 6, 7, 8, 9, 11, 3, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([3, 11, 1, 2, 4, 5, 6, 7, 0, 9, 10, 8, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([8, 2, 3, 0, 4, 5, 6, 7, 11, 9, 10, 1, 12, 13, 14, 15]),
-            7,
-        ),
-        (
-            Vec::from([1, 11, 2, 3, 7, 4, 14, 6, 0, 8, 9, 10, 12, 13, 15, 5]),
-            10,
-        ),
-        (
-            Vec::from([8, 0, 2, 3, 5, 15, 7, 4, 9, 10, 11, 1, 12, 13, 6, 14]),
-            10,
-        ),
-        (
-            Vec::from([3, 1, 2, 11, 14, 6, 7, 4, 9, 10, 0, 8, 12, 5, 13, 15]),
-            10,
-        ),
-        (
-            Vec::from([10, 1, 2, 0, 7, 13, 5, 6, 11, 8, 9, 3, 12, 14, 4, 15]),
-            10,
-        ),
-        (
-            Vec::from([0, 1, 3, 7, 2, 4, 5, 6, 11, 8, 12, 10, 13, 9, 14, 15]),
-            10,
-        ),
-        (
-            Vec::from([0, 1, 4, 2, 5, 6, 7, 3, 9, 13, 11, 8, 10, 12, 14, 15]),
-            10,
-        ),
-        (
-            Vec::from([0, 7, 1, 3, 5, 6, 2, 4, 12, 10, 11, 8, 15, 13, 14, 9]),
-            10,
-        ),
-        (
-            Vec::from([0, 2, 6, 3, 7, 4, 5, 1, 11, 15, 9, 10, 8, 13, 14, 12]),
-            10,
-        ),
-        (
-            Vec::from([0, 9, 1, 3, 5, 6, 12, 4, 2, 10, 11, 8, 15, 13, 14, 7]),
-            10,
-        ),
-        (
-            Vec::from([0, 2, 8, 3, 7, 4, 5, 15, 11, 1, 9, 10, 6, 13, 14, 12]),
-            10,
-        ),
-        (
-            Vec::from([0, 1, 3, 9, 12, 4, 5, 6, 11, 8, 2, 10, 13, 7, 14, 15]),
-            10,
-        ),
-        (
-            Vec::from([0, 1, 10, 2, 5, 6, 7, 13, 9, 3, 11, 8, 4, 12, 14, 15]),
-            10,
-        ),
-        (
-            Vec::from([3, 1, 2, 5, 0, 6, 7, 4, 9, 10, 14, 8, 12, 11, 13, 15]),
-            10,
-        ),
-        (
-            Vec::from([4, 1, 2, 0, 7, 3, 5, 6, 11, 8, 9, 13, 12, 14, 10, 15]),
-            10,
-        ),
-        (
-            Vec::from([1, 5, 2, 3, 7, 4, 0, 6, 14, 8, 9, 10, 12, 13, 15, 11]),
-            10,
-        ),
-        (
-            Vec::from([6, 0, 2, 3, 5, 1, 7, 4, 9, 10, 11, 15, 12, 13, 8, 14]),
-            10,
-        ),
-        (
-            Vec::from([3, 5, 1, 2, 4, 6, 0, 7, 14, 9, 10, 8, 15, 12, 13, 11]),
-            10,
-        ),
-        (
-            Vec::from([6, 2, 3, 0, 4, 1, 5, 7, 11, 9, 10, 15, 13, 14, 8, 12]),
-            10,
-        ),
-        (
-            Vec::from([1, 2, 3, 5, 0, 4, 6, 7, 8, 9, 14, 10, 13, 11, 15, 12]),
-            10,
-        ),
-        (
-            Vec::from([4, 0, 1, 2, 5, 3, 6, 7, 8, 9, 11, 13, 15, 12, 10, 14]),
-            10,
-        ),
-        (
-            Vec::from([3, 0, 1, 9, 12, 5, 6, 4, 8, 10, 2, 11, 15, 7, 13, 14]),
-            10,
-        ),
-        (
-            Vec::from([1, 2, 10, 0, 7, 5, 6, 13, 8, 3, 9, 11, 4, 14, 15, 12]),
-            10,
-        ),
-        (
-            Vec::from([1, 9, 3, 0, 4, 5, 12, 6, 2, 8, 10, 11, 13, 14, 15, 7]),
-            10,
-        ),
-        (
-            Vec::from([3, 0, 8, 2, 4, 5, 7, 15, 9, 1, 10, 11, 6, 12, 13, 14]),
-            10,
-        ),
-        (
-            Vec::from([1, 7, 3, 0, 4, 5, 2, 6, 12, 8, 10, 11, 13, 14, 15, 9]),
-            10,
-        ),
-        (
-            Vec::from([3, 0, 6, 2, 4, 5, 7, 1, 9, 15, 10, 11, 8, 12, 13, 14]),
-            10,
-        ),
-        (
-            Vec::from([3, 0, 1, 7, 2, 5, 6, 4, 8, 10, 12, 11, 15, 9, 13, 14]),
-            10,
-        ),
-        (
-            Vec::from([1, 2, 4, 0, 7, 5, 6, 3, 8, 13, 9, 11, 10, 14, 15, 12]),
-            10,
-        ),
-        (
-            Vec::from([1, 2, 3, 11, 14, 4, 6, 7, 8, 9, 0, 10, 13, 5, 15, 12]),
-            10,
-        ),
-        (
-            Vec::from([10, 0, 1, 2, 5, 13, 6, 7, 8, 9, 11, 3, 15, 12, 4, 14]),
-            10,
-        ),
-        (
-            Vec::from([3, 11, 1, 2, 4, 6, 14, 7, 0, 9, 10, 8, 15, 12, 13, 5]),
-            10,
-        ),
-        (
-            Vec::from([8, 2, 3, 0, 4, 15, 5, 7, 11, 9, 10, 1, 13, 14, 6, 12]),
-            10,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 4, 11, 6, 5, 9, 10, 8, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 5, 8, 7, 4, 11, 9, 10, 6, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 9, 4, 5, 6, 8, 10, 7, 11, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 5, 6, 7, 10, 8, 4, 9, 11, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 5, 6, 9, 4, 7, 8, 10, 11, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 4, 5, 8, 9, 6, 10, 11, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 11, 6, 7, 4, 8, 9, 5, 10, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 10, 5, 6, 8, 9, 11, 4, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([1, 14, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 0]),
-            11,
-        ),
-        (
-            Vec::from([15, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 1, 12]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 3, 12, 4, 5, 6, 7, 8, 9, 10, 11, 15, 2, 13, 14]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 3, 14, 15, 12]),
-            11,
-        ),
-        (
-            Vec::from([0, 12, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 2]),
-            11,
-        ),
-        (
-            Vec::from([0, 2, 15, 3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 12, 13, 14]),
-            11,
-        ),
-        (
-            Vec::from([3, 1, 2, 14, 4, 5, 6, 7, 8, 9, 10, 11, 13, 0, 15, 12]),
-            11,
-        ),
-        (
-            Vec::from([13, 1, 2, 0, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 3, 14]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 6, 11, 7, 5, 8, 9, 10, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 8, 5, 7, 9, 10, 11, 6, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 9, 5, 6, 4, 11, 8, 7, 10, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 5, 6, 10, 9, 4, 11, 8, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 9, 6, 7, 10, 11, 8, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 4, 5, 7, 8, 11, 6, 9, 10, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 11, 4, 6, 7, 9, 10, 5, 8, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 5, 10, 6, 7, 11, 8, 9, 4, 12, 13, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([3, 14, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 0]),
-            11,
-        ),
-        (
-            Vec::from([15, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1, 14]),
-            11,
-        ),
-        (
-            Vec::from([3, 0, 1, 12, 4, 5, 6, 7, 8, 9, 10, 11, 13, 2, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([1, 2, 13, 0, 4, 5, 6, 7, 8, 9, 10, 11, 3, 12, 14, 15]),
-            11,
-        ),
-        (
-            Vec::from([1, 12, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 15, 13, 14, 2]),
-            11,
-        ),
-        (
-            Vec::from([3, 0, 15, 2, 4, 5, 6, 7, 8, 9, 10, 11, 1, 13, 14, 12]),
-            11,
-        ),
-        (
-            Vec::from([1, 2, 3, 14, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 13, 15]),
-            11,
-        ),
-        (
-            Vec::from([13, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 3, 15]),
-            11,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 7, 4, 5, 6, 11, 8, 9, 10, 12, 13, 14, 15]),
-            14,
-        ),
-        (
-            Vec::from([0, 1, 2, 3, 5, 6, 7, 4, 9, 10, 11, 8, 12, 13, 14, 15]),
-            14,
-        ),
-        (
-            Vec::from([3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14]),
-            14,
-        ),
-        (
-            Vec::from([1, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12]),
-            14,
-        ),
-    ];
-    let start =
-        pack_perm_for_four_faces(&Vec::from([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]));
     let mut prev_state: Vec<Option<usize>> = vec![None; perm_list.len()];
     let mut prev_action: Vec<Option<usize>> = vec![None; perm_list.len()];
     let mut cost: Vec<i32> = vec![std::i32::MAX; perm_list.len()];
@@ -1949,7 +1686,7 @@ fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
             continue;
         }
         for (action_idx, (perm, action_cost)) in actions.iter().enumerate() {
-            let next_state = apply_action_to_packed_perm(state, &perm);
+            let next_state = apply_action_to_packed_perm64(state, &perm);
             let next_idx = perm_map[&next_state];
             if action_cost + c < cost[next_idx] {
                 cost[next_idx] = action_cost + c;
@@ -1976,16 +1713,53 @@ fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
     println!("reachable: {}", reachable);
     println!("max_cost: {} {:?}", max_cost, perm_list[max_idx]);
 
-    let res = (prev_state, prev_action);
+    (prev_state, prev_action, cost)
+}
+
+fn bfs_first_two_corner_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) {
+    if std::path::Path::new("bfs_first_two_corner.json").exists() {
+        // ファイルが存在する場合、ファイルからデータを読み込む
+        let contents = std::fs::read_to_string("bfs_first_two_corner.json").unwrap();
+        let deserialized: (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) =
+            serde_json::from_str(&contents).unwrap();
+        return deserialized;
+    }
+    let contents = std::fs::read_to_string("generate_first_two_corner_move_for_bfs.json").unwrap();
+    let actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+
+    let res = bfs_first_two_impl(&actions);
     let serialized = serde_json::to_string(&res).unwrap();
-    std::fs::write("bfs_four_edge.json", serialized).ok();
+    std::fs::write("bfs_first_two_corner.json", serialized).ok();
 
     res
 }
 
 #[allow(dead_code)]
-pub fn bfs_four_edge() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
-    BFS_FOUR_EDGE.clone()
+pub fn bfs_first_two_corner() -> (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) {
+    BFS_FIRST_TWO_CORNER.clone()
+}
+
+fn bfs_first_two_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) {
+    if std::path::Path::new("bfs_first_two_edge.json").exists() {
+        // ファイルが存在する場合、ファイルからデータを読み込む
+        let contents = std::fs::read_to_string("bfs_first_two_edge.json").unwrap();
+        let deserialized: (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) =
+            serde_json::from_str(&contents).unwrap();
+        return deserialized;
+    }
+    let contents = std::fs::read_to_string("generate_first_two_edge_move_for_bfs.json").unwrap();
+    let actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+
+    let res = bfs_first_two_impl(&actions);
+    let serialized = serde_json::to_string(&res).unwrap();
+    std::fs::write("bfs_first_two_edge.json", serialized).ok();
+
+    res
+}
+
+#[allow(dead_code)]
+pub fn bfs_first_two_edge() -> (Vec<Option<usize>>, Vec<Option<usize>>, Vec<i32>) {
+    BFS_FIRST_TWO_EDGE.clone()
 }
 
 // ======= EDGE SOLVER =========
@@ -2516,12 +2290,14 @@ fn cube_edge_to_perm(
     for t in target_idx.iter() {
         if idx_map.contains_key(&cur_state[*t]) {
             res.push(idx_map[&cur_state[*t]]);
-            // println!("size:{}", cur_state.len() / 6);
-            // println!("target_idx: {:?}", target_idx);
-            // println!("cur_state: {:?}", cur_state);
-            // println!("sol_state: {:?}", sol_state);
         } else {
             if t % dim == 0 || t % dim == dim - 1 {
+                if !idx_map.contains_key(&cur_state[*t - dim]) {
+                    println!("size:{}", cur_state.len() / 6);
+                    println!("target_idx: {:?}", target_idx);
+                    println!("cur_state: {:?}", cur_state);
+                    println!("sol_state: {:?}", sol_state);
+                }
                 res.push(idx_map[&cur_state[*t - dim]]);
             } else {
                 res.push(idx_map[&cur_state[*t - 1]]);
@@ -2706,7 +2482,7 @@ fn aster_cube_edge_first_even(
     cost.insert(init_perm.clone(), 0);
 
     let mut cnt = 0;
-    let mut end_state = cur_state.clone();
+    let mut end_state = Vec::new();
     let mut sol_moves = Vec::new();
 
     while let Some(Reverse((heuristic_cost, cur_cost, state))) = priority_qu.pop() {
@@ -2714,11 +2490,11 @@ fn aster_cube_edge_first_even(
         if cur_cost > c {
             continue;
         }
-        if cur_cost + (heuristic_cost - cur_cost) / 2 > upper_cost {
+        if heuristic_cost >= upper_cost {
             continue;
         }
         cnt += 1;
-        if cnt == 100000 {
+        if cnt == 200000 {
             break;
         }
         let mut is_goal = true;
@@ -2730,7 +2506,7 @@ fn aster_cube_edge_first_even(
         }
         if is_goal {
             upper_cost = cur_cost;
-            println!("upper_cost: {}", upper_cost);
+            println!("upper_cost: {} (attempt: {})", upper_cost, cnt);
             let mut cur_perm = state;
             let mut sol_actions = Vec::new();
 
@@ -2794,6 +2570,7 @@ pub fn solve_cube_edges(
         println!("try first even");
         let (end_state, m) = aster_cube_edge_first_even(&state, &sol_state, &actions, dim);
         if end_state.is_empty() {
+            println!("retry first even");
             let sequence: Vec<String> = sequence_to_resolve_parity(&vec![dim / 2 - 1], dim);
             for mv in sequence.iter() {
                 state = cube_moves::apply_action(&state, &actions[mv]);

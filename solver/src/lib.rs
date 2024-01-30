@@ -109,6 +109,9 @@ pub fn list_to_state(list: &Vec<usize>, piece_list: &Vec<&str>) -> String {
 }
 
 pub fn cancel_moves_in_cube(solution: &String) -> String {
+    if solution.is_empty() {
+        return solution.to_string();
+    }
     fn get_side(m: &str) -> &str {
         if m.starts_with("-") {
             get_side(&m[1..])

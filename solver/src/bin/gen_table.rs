@@ -372,6 +372,14 @@ fn main() {
     generate_move_for_bfs_up_edge(&info, 33);
     generate_move_for_bfs_left_corner(&info, 33);
     generate_move_for_bfs_left_edge(&info, 33);
+    cube_moves::generate_four_corner_move_for_bfs(&info, 33);
+    cube_moves::generate_four_edge_move_for_bfs(&info, 33);
+    cube_moves::generate_first_two_corner_move_for_bfs(&info, 33);
+    cube_moves::generate_first_two_edge_move_for_bfs(&info, 33);
     cube_moves::generate_cube_edge_move_for_bfs(&info, 33);
     cube_moves::generate_cube_edge_first_even_move_for_bfs(&puzzle_info["cube_10/10/10"], 10);
+    cube_moves::bfs_four_corner();
+    cube_moves::bfs_four_edge();
+    cube_moves::bfs_first_two_corner();
+    cube_moves::bfs_first_two_edge();
 }
