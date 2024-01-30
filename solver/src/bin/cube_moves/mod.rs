@@ -9,6 +9,8 @@ use std::collections::HashMap;
 
 use once_cell::sync::Lazy;
 
+use crate::cube_moves;
+
 static BFS_FOUR_CORNER: Lazy<(Vec<Option<usize>>, Vec<Option<usize>>)> =
     Lazy::new(|| bfs_four_corner_impl());
 
@@ -440,6 +442,21 @@ pub fn apply_action(state: &Vec<usize>, action: &Vec<(usize, usize)>) -> Vec<usi
         new_state[*i] = state[*j];
     }
     new_state
+}
+
+pub fn apply_perm<T>(state: &Vec<T>, perm: &Vec<usize>) -> Vec<T>
+where
+    T: Copy,
+{
+    perm.iter().map(|i| state[*i]).collect()
+}
+
+pub fn apply_perm_inv(state: &Vec<u8>, perm: &Vec<usize>) -> Vec<u8> {
+    let mut res = vec![0; perm.len()];
+    for i in 0..perm.len() {
+        res[perm[i]] = state[i];
+    }
+    res
 }
 
 fn calc_permutation_idx_four_corner(
@@ -1969,4 +1986,857 @@ fn bfs_four_edge_impl() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
 #[allow(dead_code)]
 pub fn bfs_four_edge() -> (Vec<Option<usize>>, Vec<Option<usize>>) {
     BFS_FOUR_EDGE.clone()
+}
+
+// ======= EDGE SOLVER =========
+
+fn target_idx_cube_edge(dim: usize, pos: usize) -> Vec<usize> {
+    let rev_pos = dim - 1 - pos;
+    let half = dim / 2;
+    let mut res = Vec::new();
+    for i in 0..6 {
+        for x in &[pos, half, rev_pos] {
+            res.push(i * dim * dim + x);
+        }
+        for y in &[pos, half, rev_pos] {
+            res.push(i * dim * dim + y * dim);
+        }
+        for y in &[pos, half, rev_pos] {
+            res.push(i * dim * dim + y * dim + dim - 1);
+        }
+        for x in &[pos, half, rev_pos] {
+            res.push(i * dim * dim + (dim - 1) * dim + x);
+        }
+    }
+    res
+}
+
+fn target_idx_cube_edge_first_even(dim: usize) -> Vec<usize> {
+    let pos = dim / 2 - 1;
+    let rev_pos = dim - 1 - pos;
+    let mut res = Vec::new();
+    for i in 0..6 {
+        for x in &[pos, rev_pos] {
+            res.push(i * dim * dim + x);
+        }
+        for y in &[pos, rev_pos] {
+            res.push(i * dim * dim + y * dim);
+        }
+        for y in &[pos, rev_pos] {
+            res.push(i * dim * dim + y * dim + dim - 1);
+        }
+        for x in &[pos, rev_pos] {
+            res.push(i * dim * dim + (dim - 1) * dim + x);
+        }
+    }
+    res
+}
+
+fn sequence_moves_for_cube_edge(dim: usize, pos: usize) -> Vec<Vec<String>> {
+    let mut base_sequences = Vec::new();
+    for first_rot_pos in &[pos, dim - 1 - pos] {
+        base_sequences.extend(Vec::from([
+            Vec::from([
+                format!("-r{}", first_rot_pos),
+                format!("d{}", dim - 1),
+                format!("r{}", 0),
+                format!("-d{}", dim - 1),
+                format!("r{}", first_rot_pos),
+            ]),
+            Vec::from([
+                format!("-r{}", first_rot_pos),
+                format!("d{}", dim - 1),
+                format!("r{}", 0),
+                format!("r{}", 0),
+                format!("-d{}", dim - 1),
+                format!("r{}", first_rot_pos),
+            ]),
+            Vec::from([
+                format!("-r{}", first_rot_pos),
+                format!("d{}", dim - 1),
+                format!("-r{}", 0),
+                format!("-d{}", dim - 1),
+                format!("r{}", first_rot_pos),
+            ]),
+            Vec::from([
+                format!("-r{}", first_rot_pos),
+                format!("-d{}", dim - 1),
+                format!("r{}", dim - 1),
+                format!("d{}", dim - 1),
+                format!("r{}", first_rot_pos),
+            ]),
+            Vec::from([
+                format!("-r{}", first_rot_pos),
+                format!("-d{}", dim - 1),
+                format!("r{}", dim - 1),
+                format!("r{}", dim - 1),
+                format!("d{}", dim - 1),
+                format!("r{}", first_rot_pos),
+            ]),
+            Vec::from([
+                format!("-r{}", first_rot_pos),
+                format!("-d{}", dim - 1),
+                format!("-r{}", dim - 1),
+                format!("d{}", dim - 1),
+                format!("r{}", first_rot_pos),
+            ]),
+        ]));
+        let r2p = format!("r{}", first_rot_pos);
+        let r2m = format!("-r{}", first_rot_pos);
+        let r3p = format!("r{}", dim - 1 - first_rot_pos);
+        let r3m = format!("-r{}", dim - 1 - first_rot_pos);
+        let top = format!("d{}", dim - 1);
+        let another_pattern = Vec::from([
+            r2p.clone(),
+            top.clone(),
+            top.clone(),
+            r3p.clone(),
+            top.clone(),
+            top.clone(),
+            r3m.clone(),
+            top.clone(),
+            top.clone(),
+            r2m.clone(),
+            top.clone(),
+            top.clone(),
+            r3p.clone(),
+            top.clone(),
+            top.clone(),
+            r3m.clone(),
+        ]);
+        base_sequences.push(another_pattern.iter().rev().map(|s| rev_move(s)).collect());
+        base_sequences.push(another_pattern);
+    }
+    let mut one_face = base_sequences.clone();
+    for _ in 0..3 {
+        base_sequences = base_sequences
+            .iter()
+            .map(|s| rot_sequence_f(&s, dim))
+            .collect();
+        one_face.extend(base_sequences.clone());
+    }
+    one_face.push(Vec::from(["f0".to_string()]));
+    let mut two_faces = one_face.clone();
+    two_faces.extend(one_face.iter().map(|s| rot2_sequence_r(&s, dim)));
+    let mut res = two_faces.clone();
+    res.extend(two_faces.iter().map(|s| rot_sequence_r(&s, dim)));
+    res.extend(two_faces.iter().map(|s| rot_sequence_d(&s, dim)));
+    res
+}
+
+#[allow(dead_code)]
+pub fn generate_cube_edge_move_for_bfs(allowed_moves: &HashMap<String, Vec<i16>>, dim: usize) {
+    let mut result = None;
+    let actions = create_actions(&allowed_moves);
+    let sol_state = (0..6 * dim * dim).collect::<Vec<usize>>();
+    for pos in (1..=dim / 2 - 1).rev() {
+        let target_idx = target_idx_cube_edge(dim, pos);
+        let mut idx_map = std::collections::HashMap::new();
+        for i in 0..target_idx.len() {
+            idx_map.insert(target_idx[i], i);
+        }
+        let mut cur_result = Vec::new();
+        let sequences = sequence_moves_for_cube_edge(dim, pos);
+        for sequence in sequences.iter() {
+            let mut state = allowed_moves[&sequence[0]]
+                .iter()
+                .map(|v| *v as usize)
+                .collect::<Vec<usize>>();
+            for i in 1..sequence.len() {
+                state = apply_action(&state, &actions[&sequence[i]]);
+            }
+
+            for face in 0..6 {
+                for i in 1..dim - 1 {
+                    for j in 1..dim - 1 {
+                        assert_eq!(state[face * dim * dim + i * dim + j] / (dim * dim), face);
+                    }
+                }
+            }
+            for (i, rot_action) in [
+                format!("-d{}", dim - 1),
+                "f0".to_string(),
+                "r0".to_string(),
+                format!("-f{}", dim - 1),
+                format!("-r{}", dim - 1),
+                "d0".to_string(),
+            ]
+            .iter()
+            .enumerate()
+            {
+                let final_rot = calc_face_rot(&state, &sol_state, dim, i);
+                if final_rot != 0 {
+                    for _ in 0..4 - final_rot {
+                        state = apply_action(&state, &actions[rot_action]);
+                    }
+                }
+                for j in 1..dim - 1 {
+                    for k in 1..dim - 1 {
+                        assert_eq!(
+                            state[i * dim * dim + j * dim + k],
+                            sol_state[i * dim * dim + j * dim + k]
+                        );
+                    }
+                }
+
+                if final_rot != 0 {
+                    for _ in 0..final_rot {
+                        state = apply_action(&state, &actions[rot_action]);
+                    }
+                }
+            }
+            for i in 0..6 {
+                let rev_pos = dim - 1 - pos;
+                let half = dim / 2;
+                for y in [0, dim - 1] {
+                    for j in 1..dim - 1 {
+                        if j == pos || j == rev_pos {
+                            continue;
+                        }
+                        if state[i * dim * dim + y * dim + half] / dim % dim % (dim - 1) == 0 {
+                            assert_eq!(
+                                state[i * dim * dim + y * dim + half] / dim,
+                                state[i * dim * dim + y * dim + j] / dim
+                            );
+                        } else {
+                            assert_eq!(
+                                state[i * dim * dim + y * dim + half] % dim,
+                                state[i * dim * dim + y * dim + j] % dim
+                            );
+                            assert_eq!(
+                                state[i * dim * dim + y * dim + half] / dim.pow(2),
+                                state[i * dim * dim + y * dim + j] / dim.pow(2)
+                            );
+                        }
+                    }
+                }
+                for x in [0, dim - 1] {
+                    for j in 1..dim - 1 {
+                        if j == pos || j == rev_pos {
+                            continue;
+                        }
+                        if state[i * dim * dim + half * dim + x] / dim % dim % (dim - 1) == 0 {
+                            assert_eq!(
+                                state[i * dim * dim + half * dim + x] / dim,
+                                state[i * dim * dim + j * dim + x] / dim
+                            );
+                        } else {
+                            assert_eq!(
+                                state[i * dim * dim + half * dim + x] % dim,
+                                state[i * dim * dim + j * dim + x] % dim
+                            );
+                            assert_eq!(
+                                state[i * dim * dim + half * dim + x] / dim.pow(2),
+                                state[i * dim * dim + j * dim + x] / dim.pow(2)
+                            );
+                        }
+                    }
+                }
+            }
+            let mut cur_move = Vec::new();
+            for idx in target_idx.iter() {
+                cur_move.push(idx_map[&state[*idx]]);
+            }
+            cur_result.push((cur_move, sequence.len()));
+        }
+        if result.is_none() {
+            result = Some(cur_result);
+        } else {
+            assert!(result == Some(cur_result));
+        }
+    }
+    let res = result.unwrap();
+    // println!("[");
+    // for r in &res {
+    //     println!("(Vec::from({:?}), {}),", r.0, r.1)
+    // }
+    // println!("]");
+    let serialized = serde_json::to_string(&res).unwrap();
+    std::fs::write("generate_cube_edge_move_for_bfs.json", serialized).ok();
+}
+
+#[allow(dead_code)]
+pub fn generate_cube_edge_first_even_move_for_bfs(
+    allowed_moves: &HashMap<String, Vec<i16>>,
+    dim: usize,
+) {
+    assert!(dim % 2 == 0 && dim >= 6);
+    let mut result = Vec::new();
+    let actions = create_actions(&allowed_moves);
+    let sol_state = (0..6 * dim * dim).collect::<Vec<usize>>();
+    let pos = dim / 2 - 1;
+    {
+        let target_idx = target_idx_cube_edge_first_even(dim);
+        let mut idx_map = std::collections::HashMap::new();
+        for i in 0..target_idx.len() {
+            idx_map.insert(target_idx[i], i);
+        }
+        let sequences = sequence_moves_for_cube_edge(dim, pos);
+        for sequence in sequences.iter() {
+            let mut state = allowed_moves[&sequence[0]]
+                .iter()
+                .map(|v| *v as usize)
+                .collect::<Vec<usize>>();
+            for i in 1..sequence.len() {
+                state = apply_action(&state, &actions[&sequence[i]]);
+            }
+
+            for face in 0..6 {
+                for i in 1..dim - 1 {
+                    for j in 1..dim - 1 {
+                        assert_eq!(state[face * dim * dim + i * dim + j] / (dim * dim), face);
+                    }
+                }
+            }
+            for (i, rot_action) in [
+                format!("-d{}", dim - 1),
+                "f0".to_string(),
+                "r0".to_string(),
+                format!("-f{}", dim - 1),
+                format!("-r{}", dim - 1),
+                "d0".to_string(),
+            ]
+            .iter()
+            .enumerate()
+            {
+                let final_rot = calc_face_rot(&state, &sol_state, dim, i);
+                if final_rot != 0 {
+                    for _ in 0..4 - final_rot {
+                        state = apply_action(&state, &actions[rot_action]);
+                    }
+                }
+                for j in 1..dim - 1 {
+                    for k in 1..dim - 1 {
+                        assert_eq!(
+                            state[i * dim * dim + j * dim + k],
+                            sol_state[i * dim * dim + j * dim + k]
+                        );
+                    }
+                }
+
+                if final_rot != 0 {
+                    for _ in 0..final_rot {
+                        state = apply_action(&state, &actions[rot_action]);
+                    }
+                }
+            }
+            for i in 0..6 {
+                let rev_pos = dim - 1 - pos;
+                for y in [0, dim - 1] {
+                    for j in 1..dim - 1 {
+                        if j == pos || j == rev_pos {
+                            continue;
+                        }
+                        if state[i * dim * dim + y * dim + 1] / dim % dim % (dim - 1) == 0 {
+                            assert_eq!(
+                                state[i * dim * dim + y * dim + 1] / dim,
+                                state[i * dim * dim + y * dim + j] / dim
+                            );
+                        } else {
+                            assert_eq!(
+                                state[i * dim * dim + y * dim + 1] % dim,
+                                state[i * dim * dim + y * dim + j] % dim
+                            );
+                            assert_eq!(
+                                state[i * dim * dim + y * dim + 1] / dim.pow(2),
+                                state[i * dim * dim + y * dim + j] / dim.pow(2)
+                            );
+                        }
+                    }
+                }
+                for x in [0, dim - 1] {
+                    for j in 1..dim - 1 {
+                        if j == pos || j == rev_pos {
+                            continue;
+                        }
+                        if state[i * dim * dim + dim + x] / dim % dim % (dim - 1) == 0 {
+                            assert_eq!(
+                                state[i * dim * dim + dim + x] / dim,
+                                state[i * dim * dim + j * dim + x] / dim
+                            );
+                        } else {
+                            assert_eq!(
+                                state[i * dim * dim + dim + x] % dim,
+                                state[i * dim * dim + j * dim + x] % dim
+                            );
+                            assert_eq!(
+                                state[i * dim * dim + dim + x] / dim.pow(2),
+                                state[i * dim * dim + j * dim + x] / dim.pow(2)
+                            );
+                        }
+                    }
+                }
+            }
+            let mut cur_move = Vec::new();
+            for idx in target_idx.iter() {
+                cur_move.push(idx_map[&state[*idx]]);
+            }
+            result.push((cur_move, sequence.len()));
+        }
+    }
+    // println!("[");
+    // for r in &res {
+    //     println!("(Vec::from({:?}), {}),", r.0, r.1)
+    // }
+    // println!("]");
+    let serialized = serde_json::to_string(&result).unwrap();
+    std::fs::write(
+        "generate_cube_edge_first_even_move_for_bfs.json",
+        serialized,
+    )
+    .ok();
+}
+
+fn heuristic_table_cube_edge() -> Vec<Vec<Vec<i32>>> {
+    let mut res = vec![vec![vec![std::i32::MAX; 72]; 72]; 72];
+    let mut priority_qu = BinaryHeap::new();
+    let contents = std::fs::read_to_string("generate_cube_edge_move_for_bfs.json").unwrap();
+    let actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+    for i in 0..24 {
+        res[3 * i][3 * i + 1][3 * i + 2] = 0;
+        res[3 * i + 2][3 * i + 1][3 * i] = 0;
+        priority_qu.push(Reverse((0, (3 * i, 3 * i + 1, 3 * i + 2))));
+        priority_qu.push(Reverse((0, (3 * i + 2, 3 * i + 1, 3 * i))));
+    }
+    while let Some(Reverse((cur_cost, (p0, p1, p2)))) = priority_qu.pop() {
+        let c = res[p0][p1][p2];
+        if cur_cost > c {
+            continue;
+        }
+        for (perm, action_cost) in actions.iter() {
+            let mut next_p0 = 0;
+            let mut next_p1 = 0;
+            let mut next_p2 = 0;
+            for j in 0..72 {
+                if perm[j] == p0 {
+                    next_p0 = j;
+                }
+                if perm[j] == p1 {
+                    next_p1 = j;
+                }
+                if perm[j] == p2 {
+                    next_p2 = j;
+                }
+            }
+            if action_cost + c < res[next_p0][next_p1][next_p2] {
+                res[next_p0][next_p1][next_p2] = action_cost + c;
+                priority_qu.push(Reverse((action_cost + c, (next_p0, next_p1, next_p2))));
+            }
+        }
+    }
+    let mut sum_cost = 0;
+    let mut max_cost = 0;
+    let mut reachable = 0;
+    for r in res.iter() {
+        for c in r.iter() {
+            for d in c.iter() {
+                if *d == std::i32::MAX {
+                    continue;
+                }
+                reachable += 1;
+                if *d > max_cost {
+                    max_cost = *d;
+                }
+                sum_cost += *d;
+            }
+        }
+    }
+    println!("reachable: {}", reachable);
+    println!("max_cost: {}", max_cost);
+    println!("sum_cost: {}", sum_cost);
+    res
+}
+
+fn heuristic_table_cube_edge_first_even() -> Vec<Vec<i32>> {
+    let mut res = vec![vec![std::i32::MAX; 48]; 48];
+    let mut priority_qu = BinaryHeap::new();
+    let contents =
+        std::fs::read_to_string("generate_cube_edge_first_even_move_for_bfs.json").unwrap();
+    let actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+    for i in 0..24 {
+        res[2 * i][2 * i + 1] = 0;
+        res[2 * i + 1][2 * i] = 0;
+        priority_qu.push(Reverse((0, (2 * i, 2 * i + 1))));
+        priority_qu.push(Reverse((0, (2 * i + 1, 2 * i))));
+    }
+    while let Some(Reverse((cur_cost, (p1, p2)))) = priority_qu.pop() {
+        let c = res[p1][p2];
+        if cur_cost > c {
+            continue;
+        }
+        for (perm, action_cost) in actions.iter() {
+            let mut next_p1 = 0;
+            let mut next_p2 = 0;
+            for j in 0..perm.len() {
+                if perm[j] == p1 {
+                    next_p1 = j;
+                }
+                if perm[j] == p2 {
+                    next_p2 = j;
+                }
+            }
+            if action_cost + c < res[next_p1][next_p2] {
+                res[next_p1][next_p2] = action_cost + c;
+                priority_qu.push(Reverse((action_cost + c, (next_p1, next_p2))));
+            }
+        }
+    }
+    let mut sum_cost = 0;
+    let mut max_cost = 0;
+    let mut reachable = 0;
+    for r in res.iter() {
+        for c in r.iter() {
+            if *c == std::i32::MAX {
+                continue;
+            }
+            reachable += 1;
+            if *c > max_cost {
+                max_cost = *c;
+            }
+            sum_cost += *c;
+        }
+    }
+    println!("reachable: {}", reachable);
+    println!("max_cost: {}", max_cost);
+    println!("sum_cost: {}", sum_cost);
+    res
+}
+
+fn cube_edge_to_perm(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    target_idx: &Vec<usize>,
+    dim: usize,
+) -> Vec<u8> {
+    let mut idx_map = HashMap::new();
+    for i in 0..target_idx.len() {
+        idx_map.insert(sol_state[target_idx[i]], i as u8);
+    }
+    let mut res = Vec::new();
+    for t in target_idx.iter() {
+        if idx_map.contains_key(&cur_state[*t]) {
+            res.push(idx_map[&cur_state[*t]]);
+            // println!("size:{}", cur_state.len() / 6);
+            // println!("target_idx: {:?}", target_idx);
+            // println!("cur_state: {:?}", cur_state);
+            // println!("sol_state: {:?}", sol_state);
+        } else {
+            if t % dim == 0 || t % dim == dim - 1 {
+                res.push(idx_map[&cur_state[*t - dim]]);
+            } else {
+                res.push(idx_map[&cur_state[*t - 1]]);
+            }
+        }
+    }
+    res
+}
+
+fn calc_heuristic_cube_edge(cur_perm: &Vec<u8>, heuristic_table: &Vec<Vec<Vec<i32>>>) -> i32 {
+    let mut res = 0;
+    for i in 0..cur_perm.len() / 3 {
+        let p0 = cur_perm[3 * i] as usize;
+        let p1 = cur_perm[3 * i + 1] as usize;
+        let p2 = cur_perm[3 * i + 2] as usize;
+        if heuristic_table[p0][p1][p2] == std::i32::MAX {
+            println!("{:?} {}", cur_perm, i);
+            println!("{} {} {} {} {} {}", p0, p1, p2, 3 * i, 3 * i + 1, 3 * i + 2);
+            assert!(false);
+        }
+        res += heuristic_table[p0][p1][p2];
+    }
+    res / 2
+}
+
+fn calc_heuristic_cube_edge_first_even(cur_perm: &Vec<u8>, heuristic_table: &Vec<Vec<i32>>) -> i32 {
+    let mut res = 0;
+    for i in 0..cur_perm.len() / 2 {
+        if heuristic_table[cur_perm[2 * i] as usize][cur_perm[2 * i + 1] as usize] == std::i32::MAX
+        {
+            println!("{:?} {}", cur_perm, i);
+            println!(
+                "{} {} {} {}",
+                cur_perm[2 * i],
+                cur_perm[2 * i + 1],
+                2 * i,
+                2 * i + 1,
+            );
+            assert!(false);
+        }
+        res += heuristic_table[cur_perm[2 * i] as usize][cur_perm[2 * i + 1] as usize];
+    }
+    res / 2
+}
+
+fn aster_cube_edge(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    heuristic_table: &Vec<Vec<Vec<i32>>>,
+    cube_actions: &HashMap<String, Vec<(usize, usize)>>,
+    dim: usize,
+    pos: usize,
+) -> (Vec<usize>, Vec<String>) {
+    let mut priority_qu = BinaryHeap::new();
+    let contents = std::fs::read_to_string("generate_cube_edge_move_for_bfs.json").unwrap();
+    let actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+    let mut prev_action: HashMap<Vec<u8>, usize> = HashMap::new();
+    let mut cost: HashMap<Vec<u8>, i32> = HashMap::new();
+    let mut upper_cost = 100; // Experiments show that the cost does not exceed 100
+    let init_perm = cube_edge_to_perm(cur_state, sol_state, &target_idx_cube_edge(dim, pos), dim);
+    priority_qu.push(Reverse((
+        calc_heuristic_cube_edge(&init_perm, heuristic_table),
+        0,
+        init_perm.clone(),
+    )));
+    cost.insert(init_perm.clone(), 0);
+
+    let mut cnt = 0;
+    let mut end_state = Vec::new();
+    let mut sol_moves = Vec::new();
+    // let mut max_h = calc_heuristic_cube_edge(&init_perm, heuristic_table);
+
+    while let Some(Reverse((heuristic_cost, cur_cost, state))) = priority_qu.pop() {
+        let c = cost[&state];
+        if cur_cost > c {
+            continue;
+        }
+        if cur_cost + (heuristic_cost - cur_cost) / 2 >= upper_cost {
+            continue;
+        }
+        // if heuristic_cost - cur_cost < max_h {
+        //     max_h = heuristic_cost - cur_cost;
+        //     println!("max_h: {}, state: {:?}", max_h, state);
+        // }
+        cnt += 1;
+        if cnt == 10000 && sol_state.is_empty() {
+            break;
+        }
+        if cnt == 100000 {
+            break;
+        }
+        // let mut parity_check = true;
+        // let mut parity_cnt = 0;
+        // for i in 0..state.len() / 3 {
+        //     let a = state[i * 3] / 3;
+        //     let b = state[i * 3 + 1] / 3;
+        //     let c = state[i * 3 + 2] / 3;
+        //     if a != b && b != c {
+        //         parity_check = false;
+        //         break;
+        //     }
+        //     if a != b || b != c {
+        //         parity_cnt += 1;
+        //     }
+        // }
+        // if parity_check && parity_cnt <= 4 && parity_cnt % 2 == 0 {
+        //     break;
+        // }
+        let mut is_goal = true;
+        for i in 0..state.len() / 3 {
+            if state[i * 3] / 3 != state[i * 3 + 1] / 3
+                || state[i * 3 + 2] / 3 != state[i * 3 + 1] / 3
+            {
+                is_goal = false;
+                break;
+            }
+        }
+        if is_goal {
+            upper_cost = cur_cost;
+            println!("upper_cost: {} (attempt: {})", upper_cost, cnt);
+            let mut cur_perm = state;
+            let mut sol_actions = Vec::new();
+
+            while let Some(action_idx) = prev_action.get(&cur_perm) {
+                sol_actions.push(*action_idx);
+                cur_perm = apply_perm_inv(&cur_perm, &actions[*action_idx].0);
+            }
+            let action_strings = sequence_moves_for_cube_edge(dim, pos);
+            end_state = cur_state.clone();
+            sol_moves.clear();
+            for action_idx in sol_actions.iter().rev() {
+                for act in action_strings[*action_idx].iter() {
+                    sol_moves.push(act.clone());
+                    end_state = apply_action(&end_state, &cube_actions[act]);
+                }
+            }
+            // break;
+            continue;
+        }
+        for (action_idx, (perm, action_cost)) in actions.iter().enumerate() {
+            let next_state = apply_perm(&state, &perm);
+            if !cost.contains_key(&next_state) {
+                cost.insert(next_state.clone(), std::i32::MAX);
+            }
+            if action_cost + c < cost[&next_state] {
+                cost.insert(next_state.clone(), action_cost + c);
+                prev_action.insert(next_state.clone(), action_idx);
+                let h = calc_heuristic_cube_edge(&next_state, heuristic_table);
+                priority_qu.push(Reverse((action_cost + c + h, action_cost + c, next_state)));
+            }
+        }
+    }
+    (end_state, sol_moves)
+}
+
+fn aster_cube_edge_first_even(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    cube_actions: &HashMap<String, Vec<(usize, usize)>>,
+    dim: usize,
+) -> (Vec<usize>, Vec<String>) {
+    let heuristic_table = heuristic_table_cube_edge_first_even();
+    let pos = dim / 2 - 1;
+    let mut priority_qu = BinaryHeap::new();
+    let contents =
+        std::fs::read_to_string("generate_cube_edge_first_even_move_for_bfs.json").unwrap();
+    let actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+    let mut prev_action: HashMap<Vec<u8>, usize> = HashMap::new();
+    let mut cost: HashMap<Vec<u8>, i32> = HashMap::new();
+    let mut upper_cost = 100; // Experiments show that the cost does not exceed 100
+    let init_perm = cube_edge_to_perm(
+        cur_state,
+        sol_state,
+        &target_idx_cube_edge_first_even(dim),
+        dim,
+    );
+    priority_qu.push(Reverse((
+        calc_heuristic_cube_edge_first_even(&init_perm, &heuristic_table),
+        0,
+        init_perm.clone(),
+    )));
+    cost.insert(init_perm.clone(), 0);
+
+    let mut cnt = 0;
+    let mut end_state = cur_state.clone();
+    let mut sol_moves = Vec::new();
+
+    while let Some(Reverse((heuristic_cost, cur_cost, state))) = priority_qu.pop() {
+        let c = cost[&state];
+        if cur_cost > c {
+            continue;
+        }
+        if cur_cost + (heuristic_cost - cur_cost) / 2 > upper_cost {
+            continue;
+        }
+        cnt += 1;
+        if cnt == 100000 {
+            break;
+        }
+        let mut is_goal = true;
+        for i in 0..state.len() / 2 {
+            if state[2 * i] / 2 != state[2 * i + 1] / 2 {
+                is_goal = false;
+                break;
+            }
+        }
+        if is_goal {
+            upper_cost = cur_cost;
+            println!("upper_cost: {}", upper_cost);
+            let mut cur_perm = state;
+            let mut sol_actions = Vec::new();
+
+            while let Some(action_idx) = prev_action.get(&cur_perm) {
+                sol_actions.push(*action_idx);
+                cur_perm = apply_perm_inv(&cur_perm, &actions[*action_idx].0);
+            }
+            let action_strings = sequence_moves_for_cube_edge(dim, pos);
+            end_state = cur_state.clone();
+            sol_moves.clear();
+            for action_idx in sol_actions.iter().rev() {
+                for act in action_strings[*action_idx].iter() {
+                    sol_moves.push(act.clone());
+                    end_state = apply_action(&end_state, &cube_actions[act]);
+                }
+            }
+            // break;
+            continue;
+        }
+        for (action_idx, (perm, action_cost)) in actions.iter().enumerate() {
+            let next_state = apply_perm(&state, &perm);
+            if !cost.contains_key(&next_state) {
+                cost.insert(next_state.clone(), std::i32::MAX);
+            }
+            if action_cost + c < cost[&next_state] {
+                cost.insert(next_state.clone(), action_cost + c);
+                prev_action.insert(next_state.clone(), action_idx);
+                let h = calc_heuristic_cube_edge_first_even(&next_state, &heuristic_table);
+                priority_qu.push(Reverse((action_cost + c + h, action_cost + c, next_state)));
+            }
+        }
+    }
+    (end_state, sol_moves)
+}
+
+#[allow(dead_code)]
+pub fn solve_cube_edges(
+    cur_state: &Vec<usize>,
+    sol_state: &Vec<usize>,
+    actions: &HashMap<String, Vec<(usize, usize)>>,
+    dim: usize,
+) -> (Vec<usize>, Vec<String>) {
+    fn sequence_to_resolve_parity(invalid_row: &Vec<usize>, dim: usize) -> Vec<String> {
+        let mut sequence: Vec<String> = invalid_row.iter().map(|i| format!("r{}", i)).collect();
+        sequence.push("f0".to_string());
+        sequence.push(format!("f{}", dim - 1));
+        for _ in 0..4 {
+            sequence.extend(invalid_row.iter().map(|i| format!("-d{}", i)));
+            sequence.push("r0".to_string());
+            sequence.push("r0".to_string());
+        }
+        sequence.extend(invalid_row.iter().map(|i| format!("-d{}", i)));
+        sequence.push("-f0".to_string());
+        sequence.push(format!("-f{}", dim - 1));
+        sequence.extend(invalid_row.iter().map(|i| format!("-r{}", i)));
+        sequence
+    }
+    let mut state = cur_state.clone();
+    let mut moves = Vec::new();
+    if dim % 2 == 0 {
+        println!("try first even");
+        let (end_state, m) = aster_cube_edge_first_even(&state, &sol_state, &actions, dim);
+        if end_state.is_empty() {
+            let sequence: Vec<String> = sequence_to_resolve_parity(&vec![dim / 2 - 1], dim);
+            for mv in sequence.iter() {
+                state = cube_moves::apply_action(&state, &actions[mv]);
+            }
+            moves.extend(sequence);
+            let (end_state, m) = aster_cube_edge_first_even(&state, &sol_state, &actions, dim);
+            assert!(!end_state.is_empty());
+            state = end_state;
+            moves.extend(m);
+        } else {
+            state = end_state;
+            moves.extend(m);
+        }
+    }
+    let mut invalid_row = Vec::new();
+    let heuristic_table = heuristic_table_cube_edge();
+    for i in 1..(dim - 1) / 2 {
+        println!("try {}", i);
+        let (end_state, m) =
+            aster_cube_edge(&state, &sol_state, &heuristic_table, &actions, dim, i);
+        if end_state.is_empty() {
+            invalid_row.push(i);
+        } else {
+            state = end_state;
+            moves.extend(m);
+        }
+    }
+    if !invalid_row.is_empty() {
+        // resolve parity error
+        let sequence: Vec<String> = sequence_to_resolve_parity(&invalid_row, dim);
+        for mv in sequence.iter() {
+            state = cube_moves::apply_action(&state, &actions[mv]);
+        }
+        moves.extend(sequence);
+
+        for i in invalid_row {
+            println!("retry {}", i);
+            let (end_state, m) =
+                aster_cube_edge(&state, &sol_state, &heuristic_table, &actions, dim, i);
+            assert!(!end_state.is_empty());
+            state = end_state;
+            moves.extend(m);
+        }
+    }
+    (state, moves)
 }

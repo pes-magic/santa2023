@@ -287,10 +287,37 @@ fn distinct_state2ubl(init_state: &str, dim: usize) -> String {
     state2ubl(&state.join(";"))
 }
 
+fn solve_cube_edges(
+    cur_state: &Vec<usize>,
+    actions: &HashMap<String, Vec<(usize, usize)>>,
+    current_solution: &String,
+    temporary_solution: &Vec<String>,
+    dim: usize,
+) -> (Vec<usize>, Vec<String>) {
+    let sol_state: Vec<usize> = (0..6 * dim * dim).collect();
+    let mut state = sol_state.clone();
+    let cur_moves = current_solution.split(".").collect::<Vec<&str>>();
+    for m in cur_moves.iter().rev() {
+        let action = &actions[&cube_moves::rev_move(&m.to_string())];
+        state = cube_moves::apply_action(&state, action);
+    }
+    for m in temporary_solution.iter() {
+        let action = &actions[m];
+        state = cube_moves::apply_action(&state, action);
+    }
+    let (_, moves) = cube_moves::solve_cube_edges(&state, &sol_state, &actions, dim);
+    let mut state = cur_state.clone();
+    for m in moves.iter() {
+        state = cube_moves::apply_action(&state, &actions[m]);
+    }
+    (state, moves)
+}
+
 fn solve_cube_by_rule(
     puzzle: &solver::Puzzle,
     move_map: &HashMap<String, String>,
     allowed_moves: &HashMap<String, Vec<i16>>,
+    current_solution: &String,
     dim: usize,
 ) -> Option<String> {
     let (piece_map, piece_list) = solver::gen_piece_map(&puzzle.solution_state);
@@ -353,6 +380,16 @@ fn solve_cube_by_rule(
             .collect::<Vec<&str>>()
             .len()
     );
+    let (end_state, m) = solve_cube_edges(&state, &actions, &current_solution, &moves, dim);
+    state = end_state;
+    moves.extend(m);
+    println!(
+        "end edge: {}",
+        solver::cancel_moves_in_cube(&moves.join("."))
+            .split(".")
+            .collect::<Vec<&str>>()
+            .len()
+    );
     // println!("Solved {}", moves.len());
     // for k in 0..6 {
     //     for i in 0..dim {
@@ -406,6 +443,8 @@ fn solve_cube_by_solver(
         .arg(state)
         .output()
         .expect("Failed to execute command");
+
+    std::env::set_current_dir(&project_dir).unwrap();
 
     // 出力を文字列に変換
     let output_str = String::from_utf8_lossy(&output.stdout);
@@ -528,6 +567,7 @@ fn solve_cube_by_solver(
 fn solve_cube(
     puzzle: &solver::Puzzle,
     allowed_moves: &HashMap<String, Vec<i16>>,
+    current_solution: &String,
     dim: usize,
 ) -> Option<String> {
     let move_map = move_translation(dim);
@@ -545,7 +585,7 @@ fn solve_cube(
     if dim <= 8 {
         solve_cube_by_solver(init_state, sol_state, &move_map, allowed_moves, dim)
     } else {
-        solve_cube_by_rule(puzzle, &move_map, allowed_moves, dim)
+        solve_cube_by_rule(puzzle, &move_map, allowed_moves, current_solution, dim)
     }
 }
 
@@ -581,7 +621,7 @@ fn solve() {
         }
 
         let moves = &puzzle_info[&row.puzzle_type];
-        if let Some(result) = solve_cube(&row, &moves, dim) {
+        if let Some(result) = solve_cube(&row, &moves, &submission_df[&id], dim) {
             println!("solved id: {}", id);
             // println!("solution: {}", result);
             let result = solver::cancel_moves_in_cube(&result);
@@ -614,6 +654,7 @@ fn solve() {
             let best_moves_length = submission_df[&id].split(".").collect::<Vec<&str>>().len();
             println!("find: {}, best: {}", mmoves_length, best_moves_length);
             if mmoves_length < best_moves_length {
+                println!("solution: {}", result);
                 submission_df.insert(id, result);
             }
         } else {
