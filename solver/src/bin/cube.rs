@@ -342,7 +342,7 @@ fn solve_cube_by_rule(
             .collect::<Vec<&str>>()
             .len()
     );
-    let (end_state, m) = cube_moves::solve_four_faces_impl(&state, &sol_state, &actions, dim);
+    let (end_state, m) = cube_moves::solve_four_faces_impl(&state, &sol_state, &actions, dim, 100);
     state = end_state;
     moves.extend(m);
     println!(
@@ -548,7 +548,7 @@ fn solve_cube(
     if distinct_cube {
         return None;
     }
-    if dim <= 7 {
+    if dim <= 5 {
         solve_cube_by_solver_with_center_rot(puzzle, allowed_moves, dim)
     } else {
         solve_cube_by_rule(puzzle, allowed_moves, current_solution, dim)

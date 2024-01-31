@@ -3,6 +3,7 @@
 // * https://cube.uubio.com
 
 use itertools::Itertools;
+use rand::seq::SliceRandom;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
@@ -396,6 +397,7 @@ fn solve_first_two_faces_impl(
     sol_state: &Vec<usize>,
     actions: &HashMap<String, Vec<(usize, usize)>>,
     dim: usize,
+    try_num: usize,
 ) -> (Vec<usize>, Vec<String>) {
     let mut state = cur_state.clone();
     let mut moves = Vec::new();
@@ -403,8 +405,19 @@ fn solve_first_two_faces_impl(
     state = end_state;
     moves.extend(m);
     let (end_state, m) = solve_first_two_faces_edge(&state, sol_state, actions, dim);
-    state = end_state;
-    moves.extend(m);
+    {
+        let mut best_state = end_state;
+        let mut best_m = m;
+        for _ in 0..try_num {
+            let (end_state2, m2) = solve_first_two_faces_edge(&state, sol_state, actions, dim);
+            if m2.len() < best_m.len() {
+                best_state = end_state2;
+                best_m = m2;
+            }
+        }
+        state = best_state;
+        moves.extend(best_m);
+    }
     (state, moves)
 }
 
@@ -416,7 +429,7 @@ pub fn solve_first_two_faces(
     dim: usize,
 ) -> (Vec<usize>, Vec<String>) {
     if dim % 2 == 0 {
-        return solve_first_two_faces_impl(&cur_state, sol_state, actions, dim);
+        return solve_first_two_faces_impl(&cur_state, sol_state, actions, dim, 100);
     }
     let half = dim / 2;
     let action_list = [
@@ -433,13 +446,12 @@ pub fn solve_first_two_faces(
         actions: &HashMap<String, Vec<(usize, usize)>>,
         dim: usize,
         offset_cost: i32,
-    ) -> (Vec<usize>, Vec<String>, i32) {
-        let (mid_state, m) = solve_first_two_faces_impl(&cur_state, sol_state, actions, dim);
-        let post_cost = solve_four_faces_impl(&mid_state, sol_state, actions, dim)
+    ) -> i32 {
+        let (mid_state, m) = solve_first_two_faces_impl(&cur_state, sol_state, actions, dim, 1);
+        let post_cost = solve_four_faces_impl(&mid_state, sol_state, actions, dim, 0)
             .1
             .len() as i32;
-        let cost = m.len() as i32 + post_cost + offset_cost;
-        (mid_state, m, cost)
+        m.len() as i32 + post_cost + offset_cost
     }
     fn valid_state(state: &Vec<usize>, sol_state: &Vec<usize>, dim: usize) -> bool {
         let half = dim / 2;
@@ -455,18 +467,17 @@ pub fn solve_first_two_faces(
     let mut best_move = Vec::new();
     let mut best_cost = 100000000;
     if valid_state(cur_state, sol_state, dim) {
-        (best_end_state, best_move, best_cost) = evaluate(cur_state, sol_state, actions, dim, 0);
+        best_cost = evaluate(cur_state, sol_state, actions, dim, 0);
     }
     let mut state = cur_state.clone();
     for (idx0, act0) in action_list.iter().enumerate() {
         state = apply_action(&state, &actions[act0]);
         if valid_state(&state, sol_state, dim) {
-            let (end_state, m, cost) = evaluate(&state, sol_state, actions, dim, 1);
+            let cost = evaluate(&state, sol_state, actions, dim, 1);
             if cost < best_cost {
-                best_end_state = end_state;
+                best_end_state = state.clone();
                 best_move.clear();
                 best_move.push(act0.clone());
-                best_move.extend(m);
                 best_cost = cost;
             }
         }
@@ -476,13 +487,12 @@ pub fn solve_first_two_faces(
             }
             state = apply_action(&state, &actions[act1]);
             if valid_state(&state, sol_state, dim) {
-                let (end_state, m, cost) = evaluate(&state, sol_state, actions, dim, 2);
+                let cost = evaluate(&state, sol_state, actions, dim, 2);
                 if cost < best_cost {
-                    best_end_state = end_state;
+                    best_end_state = state.clone();
                     best_move.clear();
                     best_move.push(act0.clone());
                     best_move.push(act1.clone());
-                    best_move.extend(m);
                     best_cost = cost;
                 }
             }
@@ -492,14 +502,13 @@ pub fn solve_first_two_faces(
                 }
                 state = apply_action(&state, &actions[act2]);
                 if valid_state(&state, sol_state, dim) {
-                    let (end_state, m, cost) = evaluate(&state, sol_state, actions, dim, 3);
+                    let cost = evaluate(&state, sol_state, actions, dim, 3);
                     if cost < best_cost {
-                        best_end_state = end_state;
+                        best_end_state = state.clone();
                         best_move.clear();
                         best_move.push(act0.clone());
                         best_move.push(act1.clone());
                         best_move.push(act2.clone());
-                        best_move.extend(m);
                         best_cost = cost;
                     }
                 }
@@ -510,7 +519,9 @@ pub fn solve_first_two_faces(
 
         state = apply_action(&state, &actions[&rev_move(act0)]);
     }
-    (best_end_state, best_move)
+    let (end_state, m) = solve_first_two_faces_impl(&best_end_state, sol_state, actions, dim, 100);
+    best_move.extend(m);
+    (end_state, best_move)
 }
 
 #[allow(dead_code)]
@@ -519,6 +530,7 @@ pub fn solve_four_faces_impl(
     sol_state: &Vec<usize>,
     actions: &HashMap<String, Vec<(usize, usize)>>,
     dim: usize,
+    try_num: usize,
 ) -> (Vec<usize>, Vec<String>) {
     let mut state = cur_state.clone();
     let mut moves = Vec::new();
@@ -545,8 +557,19 @@ pub fn solve_four_faces_impl(
     state = end_state;
     moves.extend(m);
     let (end_state, m) = solve_four_faces_edge(&state, sol_state, actions, dim);
-    state = end_state;
-    moves.extend(m);
+    {
+        let mut best_state = end_state;
+        let mut best_m = m;
+        for _ in 0..try_num {
+            let (end_state2, m2) = solve_four_faces_edge(&state, sol_state, actions, dim);
+            if m2.len() < best_m.len() {
+                best_state = end_state2;
+                best_m = m2;
+            }
+        }
+        state = best_state;
+        moves.extend(best_m);
+    }
     (state, moves)
 }
 
@@ -719,30 +742,110 @@ fn solve_first_two_faces_edge(
     actions: &HashMap<String, Vec<(usize, usize)>>,
     dim: usize,
 ) -> (Vec<usize>, Vec<String>) {
-    let (_, perm_map) = gen_perm_map_first_two_faces();
-    let (prev_state, prev_action, cost_table) = bfs_first_two_edge();
+    let (perm_list, perm_map) = gen_perm_map_first_two_faces();
+    let (_, prev_action, cost_table) = bfs_first_two_edge();
     let mut state = cur_state.clone();
     let mut moves_str = Vec::new();
+    let contents = std::fs::read_to_string("generate_first_two_edge_move_for_bfs.json").unwrap();
+    let perm_actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+    let contents = std::fs::read_to_string("generate_first_two_edge_move_diff.json").unwrap();
+    let perm_actions_diff: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+    let mut cnt = 0;
     for y in 1..dim / 2 {
-        for x in y + 1..dim - 1 - y {
-            let perm_idx =
-                calc_permutation_idx_first_two_edge(&state, sol_state, &perm_map, dim, y, x);
+        let all_moves = (y + 1..dim - 1 - y)
+            .map(|x| sequence_moves_first_two_edge(dim, y, x))
+            .collect::<Vec<_>>();
+        if all_moves.is_empty() {
+            continue;
+        }
+        let act_diff = calc_sequence_list_diff(&all_moves[0], all_moves.last().unwrap());
+        let mut rng = rand::thread_rng();
+        let mut fix_order = (0..dim - 1 - y - (y + 1)).collect::<Vec<usize>>();
+        fix_order.shuffle(&mut rng);
 
-            let mut state_idx = perm_idx;
+        loop {
+            let perms = (y + 1..dim - 1 - y)
+                .map(|x| {
+                    calc_permutation_idx_first_two_edge(&state, sol_state, &perm_map, dim, y, x)
+                })
+                .collect::<Vec<_>>();
 
-            let moves = sequence_moves_first_two_edge(dim, y, x);
-
-            let mut action_idxes = Vec::new();
-            let mut qu = std::collections::VecDeque::new();
-            while let Some(next_index) = prev_state[state_idx] {
-                action_idxes.push(prev_action[state_idx].unwrap());
-                state_idx = next_index;
-                qu.push_back(state_idx);
+            if perms.iter().map(|p| cost_table[*p]).sum::<i32>() == 0 {
+                break;
             }
-            assert!(cost_table[state_idx] == 0);
-            for action_idx in action_idxes.iter() {
-                let action = &moves[*action_idx];
-                for act in action.iter().rev() {
+            let mut best_action_idx = 0;
+            let mut best_action_cost = std::i32::MAX;
+            let mut best_apply_list = Vec::new();
+            for i in fix_order.iter() {
+                if cost_table[perms[*i]] == 0 {
+                    continue;
+                }
+                best_action_idx = prev_action[perms[*i]].unwrap();
+                best_action_cost = 0;
+                best_apply_list.push(*i);
+                break;
+            }
+            for i in best_action_idx..best_action_idx + 1 {
+                let moved_perms = perms
+                    .iter()
+                    .map(|p| {
+                        perm_map
+                            [&apply_action_to_packed_perm_inv64(perm_list[*p], &perm_actions[i].0)]
+                    })
+                    .collect::<Vec<_>>();
+                let no_moved_perms = perms
+                    .iter()
+                    .map(|p| {
+                        perm_map[&apply_action_to_packed_perm_inv64(
+                            perm_list[*p],
+                            &perm_actions_diff[i].0,
+                        )]
+                    })
+                    .collect::<Vec<_>>();
+                let mut apply_list = Vec::new();
+                let mut cost_sum = perm_actions[i].1;
+                for j in 0..moved_perms.len() {
+                    let no_action_cost = cost_table[no_moved_perms[j]] - cost_table[perms[j]];
+                    let action_cost =
+                        cost_table[moved_perms[j]] - cost_table[perms[j]] + act_diff[i].0;
+                    if action_cost < no_action_cost {
+                        cost_sum += action_cost;
+                        if apply_list.is_empty() {
+                            cost_sum -= act_diff[i].0;
+                        }
+                        apply_list.push(j);
+                    } else {
+                        cost_sum += no_action_cost;
+                    }
+                }
+                if apply_list.is_empty() {
+                    continue;
+                }
+                if cost_sum < best_action_cost
+                    || (cost_sum == best_action_cost && apply_list.len() > best_apply_list.len())
+                {
+                    best_action_idx = i;
+                    best_action_cost = cost_sum;
+                    best_apply_list = apply_list;
+                }
+            }
+            assert!(best_action_cost != std::i32::MAX);
+            assert!(!best_apply_list.is_empty());
+            let base_action = &all_moves[best_apply_list[0]][best_action_idx];
+            for (inv_idx, act) in base_action.iter().rev().enumerate() {
+                let idx = base_action.len() - 1 - inv_idx;
+                if act_diff[best_action_idx].1 & (1 << idx) != 0 {
+                    for j in best_apply_list.iter() {
+                        let cur_act = &all_moves[*j][best_action_idx][idx];
+                        let inv_act = rev_move(cur_act);
+                        if !actions.contains_key(inv_act.as_str()) {
+                            println!("{}", inv_act);
+                        }
+                        let action = &actions[inv_act.as_str()];
+                        state = apply_action(&state, action);
+                        moves_str.push(inv_act);
+                    }
+                } else {
                     let inv_act = rev_move(act);
                     if !actions.contains_key(inv_act.as_str()) {
                         println!("{}", inv_act);
@@ -752,8 +855,35 @@ fn solve_first_two_faces_edge(
                     moves_str.push(inv_act);
                 }
             }
+            cnt += 1;
+            if cnt == 10000 {
+                assert!(false);
+            }
         }
     }
+
+    let mut ok = true;
+    for i in &[1, 3] {
+        for j in 1..dim - 1 {
+            for k in 1..dim - 1 {
+                if state[i * dim * dim + j * dim + k] != sol_state[i * dim * dim + j * dim + k] {
+                    ok = false
+                }
+            }
+        }
+    }
+    if !ok {
+        for i in 0..6 {
+            for j in 1..dim - 1 {
+                for k in 1..dim - 1 {
+                    print!("{} ", state[i * dim * dim + j * dim + k]);
+                }
+                println!("");
+            }
+            println!("");
+        }
+    }
+    assert!(ok);
 
     (state, moves_str)
 }
@@ -793,34 +923,130 @@ fn solve_four_faces_corner(
     (state, moves_str)
 }
 
+fn calc_sequence_list_diff(seq0: &Vec<Vec<String>>, seq1: &Vec<Vec<String>>) -> Vec<(i32, usize)> {
+    let mut res = Vec::new();
+    for i in 0..seq0.len() {
+        let mut diff = 0;
+        let mut mask = 0;
+        for j in 0..seq0[i].len() {
+            if seq0[i][j] != seq1[i][j] {
+                diff += 1;
+                mask |= 1 << j;
+            }
+        }
+        res.push((diff, mask));
+    }
+    res
+}
+
 fn solve_four_faces_edge(
     cur_state: &Vec<usize>,
     sol_state: &Vec<usize>,
     actions: &HashMap<String, Vec<(usize, usize)>>,
     dim: usize,
 ) -> (Vec<usize>, Vec<String>) {
-    let (_, perm_map) = gen_perm_map_four_faces();
-    let (prev_state, prev_action, _) = bfs_four_edge();
+    let (perm_list, perm_map) = gen_perm_map_four_faces();
+    let (_, prev_action, cost_table) = bfs_four_edge();
     let mut state = cur_state.clone();
     let mut moves_str = Vec::new();
+    let contents = std::fs::read_to_string("generate_four_edge_move_for_bfs.json").unwrap();
+    let perm_actions: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+    let contents = std::fs::read_to_string("generate_four_edge_move_diff.json").unwrap();
+    let perm_actions_diff: Vec<(Vec<usize>, i32)> = serde_json::from_str(&contents).unwrap();
+    let mut cnt = 0;
     for y in 1..dim / 2 {
-        for x in y + 1..dim - 1 - y {
-            let perm_idx = calc_permutation_idx_four_edge(&state, sol_state, &perm_map, dim, y, x);
+        let all_moves = (y + 1..dim - 1 - y)
+            .map(|x| sequence_moves_four_edge(dim, y, x))
+            .collect::<Vec<_>>();
+        if all_moves.is_empty() {
+            continue;
+        }
+        let act_diff = calc_sequence_list_diff(&all_moves[0], all_moves.last().unwrap());
+        let mut rng = rand::thread_rng();
+        let mut fix_order = (0..dim - 1 - y - (y + 1)).collect::<Vec<usize>>();
+        fix_order.shuffle(&mut rng);
 
-            let mut state_idx = perm_idx;
+        loop {
+            let perms = (y + 1..dim - 1 - y)
+                .map(|x| calc_permutation_idx_four_edge(&state, sol_state, &perm_map, dim, y, x))
+                .collect::<Vec<_>>();
 
-            let moves = sequence_moves_four_edge(dim, y, x);
-
-            let mut action_idxes = Vec::new();
-            let mut qu = std::collections::VecDeque::new();
-            while let Some(next_index) = prev_state[state_idx] {
-                action_idxes.push(prev_action[state_idx].unwrap());
-                state_idx = next_index;
-                qu.push_back(state_idx);
+            if perms.iter().map(|p| cost_table[*p]).sum::<i32>() == 0 {
+                break;
             }
-            for action_idx in action_idxes.iter() {
-                let action = &moves[*action_idx];
-                for act in action.iter().rev() {
+            let mut best_action_idx = 0;
+            let mut best_action_cost = std::i32::MAX;
+            let mut best_apply_list = Vec::new();
+            for i in fix_order.iter() {
+                if cost_table[perms[*i]] == 0 {
+                    continue;
+                }
+                best_action_idx = prev_action[perms[*i]].unwrap();
+                best_action_cost = 0;
+                best_apply_list.push(*i);
+                break;
+            }
+            for i in best_action_idx..best_action_idx + 1 {
+                let moved_perms = perms
+                    .iter()
+                    .map(|p| {
+                        perm_map
+                            [&apply_action_to_packed_perm_inv(perm_list[*p], &perm_actions[i].0)]
+                    })
+                    .collect::<Vec<_>>();
+                let no_moved_perms = perms
+                    .iter()
+                    .map(|p| {
+                        perm_map[&apply_action_to_packed_perm_inv(
+                            perm_list[*p],
+                            &perm_actions_diff[i].0,
+                        )]
+                    })
+                    .collect::<Vec<_>>();
+                let mut apply_list = Vec::new();
+                let mut cost_sum = perm_actions[i].1;
+                for j in 0..moved_perms.len() {
+                    let no_action_cost = cost_table[no_moved_perms[j]] - cost_table[perms[j]];
+                    let action_cost =
+                        cost_table[moved_perms[j]] - cost_table[perms[j]] + act_diff[i].0;
+                    if action_cost < no_action_cost {
+                        cost_sum += action_cost;
+                        if apply_list.is_empty() {
+                            cost_sum -= act_diff[i].0;
+                        }
+                        apply_list.push(j);
+                    } else {
+                        cost_sum += no_action_cost;
+                    }
+                }
+                if apply_list.is_empty() {
+                    continue;
+                }
+                if cost_sum < best_action_cost
+                    || (cost_sum == best_action_cost && apply_list.len() > best_apply_list.len())
+                {
+                    best_action_idx = i;
+                    best_action_cost = cost_sum;
+                    best_apply_list = apply_list;
+                }
+            }
+            assert!(best_action_cost != std::i32::MAX);
+            assert!(!best_apply_list.is_empty());
+            let base_action = &all_moves[best_apply_list[0]][best_action_idx];
+            for (inv_idx, act) in base_action.iter().rev().enumerate() {
+                let idx = base_action.len() - 1 - inv_idx;
+                if act_diff[best_action_idx].1 & (1 << idx) != 0 {
+                    for j in best_apply_list.iter() {
+                        let cur_act = &all_moves[*j][best_action_idx][idx];
+                        let inv_act = rev_move(cur_act);
+                        if !actions.contains_key(inv_act.as_str()) {
+                            println!("{}", inv_act);
+                        }
+                        let action = &actions[inv_act.as_str()];
+                        state = apply_action(&state, action);
+                        moves_str.push(inv_act);
+                    }
+                } else {
                     let inv_act = rev_move(act);
                     if !actions.contains_key(inv_act.as_str()) {
                         println!("{}", inv_act);
@@ -830,8 +1056,35 @@ fn solve_four_faces_edge(
                     moves_str.push(inv_act);
                 }
             }
+            cnt += 1;
+            if cnt == 10000 {
+                assert!(false);
+            }
         }
     }
+
+    let mut ok = true;
+    for i in 0..6 {
+        for j in 1..dim - 1 {
+            for k in 1..dim - 1 {
+                if state[i * dim * dim + j * dim + k] != sol_state[i * dim * dim + j * dim + k] {
+                    ok = false
+                }
+            }
+        }
+    }
+    if !ok {
+        for i in 0..6 {
+            for j in 1..dim - 1 {
+                for k in 1..dim - 1 {
+                    print!("{} ", state[i * dim * dim + j * dim + k]);
+                }
+                println!("");
+            }
+            println!("");
+        }
+    }
+    assert!(ok);
 
     (state, moves_str)
 }
@@ -884,10 +1137,26 @@ fn apply_action_to_packed_perm(packed_perm: u32, action: &Vec<usize>) -> u32 {
     res
 }
 
+fn apply_action_to_packed_perm_inv(packed_perm: u32, action: &Vec<usize>) -> u32 {
+    let mut res = 0;
+    for i in 0..16 {
+        res |= ((packed_perm >> (2 * i)) % 4) << (2 * action[i] as u32);
+    }
+    res
+}
+
 fn apply_action_to_packed_perm64(packed_perm: u64, action: &Vec<usize>) -> u64 {
     let mut res = 0;
     for i in 0..24 {
         res |= ((packed_perm >> (2 * action[i] as u64)) % 4) << (2 * i);
+    }
+    res
+}
+
+fn apply_action_to_packed_perm_inv64(packed_perm: u64, action: &Vec<usize>) -> u64 {
+    let mut res = 0;
+    for i in 0..24 {
+        res |= ((packed_perm >> (2 * i)) % 4) << (2 * action[i] as u64);
     }
     res
 }
@@ -1430,6 +1699,84 @@ pub fn generate_four_edge_move_for_bfs(allowed_moves: &HashMap<String, Vec<i16>>
 }
 
 #[allow(dead_code)]
+pub fn generate_four_edge_move_diff(allowed_moves: &HashMap<String, Vec<i16>>, dim: usize) {
+    let mut result = None;
+    let actions = create_actions(&allowed_moves);
+    for y in 1..dim / 2 {
+        for x in y + 1..dim - 2 - y {
+            let target_idx = target_idx_four_edge(dim, y, x);
+            let mut idx_map = std::collections::HashMap::new();
+            for i in 0..target_idx.len() {
+                idx_map.insert(target_idx[i], i);
+            }
+            let target_idx_dif = target_idx_four_edge(dim, y, x + 1);
+            let mut idx_map_dif = std::collections::HashMap::new();
+            for i in 0..target_idx_dif.len() {
+                idx_map_dif.insert(target_idx_dif[i], i);
+            }
+            let mut cur_result = Vec::new();
+            let sequences = sequence_moves_four_edge(dim, y, x);
+            for sequence in sequences.iter() {
+                let mut state = allowed_moves[&sequence[0]]
+                    .iter()
+                    .map(|v| *v as usize)
+                    .collect::<Vec<usize>>();
+                for i in 1..sequence.len() {
+                    state = apply_action(&state, &actions[&sequence[i]]);
+                }
+
+                for face in &[1, 3] {
+                    for i in 1..dim - 1 {
+                        for j in 1..dim - 1 {
+                            assert!(state[face * dim * dim + i * dim + j] / (dim * dim) == *face);
+                        }
+                    }
+                }
+                if sequence.len() >= 2 {
+                    for face in &[0, 2, 4, 5] {
+                        for i in 1..dim - 1 {
+                            for j in 1..dim - 1 {
+                                let idx = face * dim * dim + i * dim + j;
+                                if idx_map.contains_key(&idx) {
+                                    continue;
+                                }
+                                let idx1 = face * dim * dim + j * dim + dim - 1 - i;
+                                let idx2 = face * dim * dim + (dim - 1 - i) * dim + dim - 1 - j;
+                                let idx3 = face * dim * dim + (dim - 1 - j) * dim + i;
+                                assert!(
+                                    state[idx] == idx
+                                        || state[idx1] == idx
+                                        || state[idx2] == idx
+                                        || state[idx3] == idx
+                                );
+                            }
+                        }
+                    }
+                }
+                let mut cur_move = Vec::new();
+                for idx in target_idx_dif.iter() {
+                    cur_move.push(idx_map_dif[&state[*idx]]);
+                }
+                cur_result.push((cur_move, sequence.len()));
+            }
+            if result.is_none() {
+                result = Some(cur_result);
+            } else {
+                assert!(result == Some(cur_result));
+            }
+        }
+    }
+    let res = result.unwrap();
+    println!("[");
+    for r in &res {
+        println!("(Vec::from({:?}), {}),", r.0, r.1)
+    }
+    println!("]");
+    let serialized = serde_json::to_string(&res).unwrap();
+    std::fs::write("generate_four_edge_move_diff.json", serialized).ok();
+}
+
+#[allow(dead_code)]
 pub fn generate_first_two_edge_move_for_bfs(allowed_moves: &HashMap<String, Vec<i16>>, dim: usize) {
     let mut result = None;
     let actions = create_actions(&allowed_moves);
@@ -1493,6 +1840,77 @@ pub fn generate_first_two_edge_move_for_bfs(allowed_moves: &HashMap<String, Vec<
     println!("]");
     let serialized = serde_json::to_string(&res).unwrap();
     std::fs::write("generate_first_two_edge_move_for_bfs.json", serialized).ok();
+}
+
+#[allow(dead_code)]
+pub fn generate_first_two_edge_move_diff(allowed_moves: &HashMap<String, Vec<i16>>, dim: usize) {
+    let mut result = None;
+    let actions = create_actions(&allowed_moves);
+    for y in 1..dim / 2 {
+        for x in y + 1..dim - 2 - y {
+            let target_idx = target_idx_edge(dim, y, x, &(0..6).collect());
+            let mut idx_map = std::collections::HashMap::new();
+            for i in 0..target_idx.len() {
+                idx_map.insert(target_idx[i], i);
+            }
+            let target_idx_dif = target_idx_edge(dim, y, x + 1, &(0..6).collect());
+            let mut idx_map_dif = std::collections::HashMap::new();
+            for i in 0..target_idx_dif.len() {
+                idx_map_dif.insert(target_idx_dif[i], i);
+            }
+            let mut cur_result = Vec::new();
+            let sequences = sequence_moves_first_two_edge(dim, y, x);
+            for sequence in sequences.iter() {
+                let mut state = allowed_moves[&sequence[0]]
+                    .iter()
+                    .map(|v| *v as usize)
+                    .collect::<Vec<usize>>();
+                for i in 1..sequence.len() {
+                    state = apply_action(&state, &actions[&sequence[i]]);
+                }
+
+                if sequence.len() >= 2 {
+                    for face in 0..6 {
+                        for i in 1..dim - 1 {
+                            for j in 1..dim - 1 {
+                                let idx = face * dim * dim + i * dim + j;
+                                if idx_map.contains_key(&idx) {
+                                    continue;
+                                }
+                                let idx1 = face * dim * dim + j * dim + dim - 1 - i;
+                                let idx2 = face * dim * dim + (dim - 1 - i) * dim + dim - 1 - j;
+                                let idx3 = face * dim * dim + (dim - 1 - j) * dim + i;
+                                assert!(
+                                    state[idx] == idx
+                                        || state[idx1] == idx
+                                        || state[idx2] == idx
+                                        || state[idx3] == idx
+                                );
+                            }
+                        }
+                    }
+                }
+                let mut cur_move = Vec::new();
+                for idx in target_idx_dif.iter() {
+                    cur_move.push(idx_map_dif[&state[*idx]]);
+                }
+                cur_result.push((cur_move, sequence.len()));
+            }
+            if result.is_none() {
+                result = Some(cur_result);
+            } else {
+                assert!(result == Some(cur_result));
+            }
+        }
+    }
+    let res = result.unwrap();
+    println!("[");
+    for r in &res {
+        println!("(Vec::from({:?}), {}),", r.0, r.1)
+    }
+    println!("]");
+    let serialized = serde_json::to_string(&res).unwrap();
+    std::fs::write("generate_first_two_edge_move_diff.json", serialized).ok();
 }
 
 fn gen_perm_map_four_faces_impl() -> (Vec<u32>, HashMap<u32, usize>) {
