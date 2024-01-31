@@ -1,5 +1,4 @@
 // Reference
-// * https://github.com/merpig/RubiksProgram
 // * https://cube.uubio.com
 
 use itertools::Itertools;
@@ -157,239 +156,6 @@ pub fn rot_sequence_r(seq: &Vec<String>, dim: usize) -> Vec<String> {
 #[allow(dead_code)]
 pub fn rot2_sequence_r(seq: &Vec<String>, dim: usize) -> Vec<String> {
     seq.iter().map(|s| rot2_move_r(s, dim)).collect()
-}
-
-#[derive(Debug, Clone)]
-pub struct P3 {
-    pub x: usize,
-    pub y: usize,
-    pub z: usize,
-}
-
-impl P3 {
-    #[allow(dead_code)]
-    pub fn new(x: usize, y: usize, z: usize) -> P3 {
-        P3 { x, y, z }
-    }
-}
-
-fn p3_to_side(p: &P3, dim: usize) -> char {
-    if p.x == 0 {
-        'L'
-    } else if p.x == dim - 1 {
-        'R'
-    } else if p.y == 0 {
-        'F'
-    } else if p.y == dim - 1 {
-        'B'
-    } else if p.z == 0 {
-        'D'
-    } else if p.z == dim - 1 {
-        'U'
-    } else {
-        panic!("Invalid p3")
-    }
-}
-
-#[allow(dead_code)]
-pub fn solve_white_middle_impl(current: &P3, solved: &P3, dim: usize) -> Vec<String> {
-    let current_side = p3_to_side(current, dim);
-    let row = dim - 2 - solved.z;
-    let column = solved.x - 1;
-    let mut res: Vec<String> = Vec::new();
-
-    if solved.x == 1 {
-        if dim - solved.z == 2 {
-            if current_side == 'F' {
-                res.push("f0".to_string());
-            }
-            // !D and !U
-            else if current_side != 'D' && current_side != 'U' {
-                if current.z != dim - 2 {
-                    if current_side == 'B' {
-                        res.push(format!("-f{}", dim - 1));
-                    } else if current_side == 'R' {
-                        res.push("r0".to_string());
-                    } else if current_side == 'L' {
-                        res.push(format!("-r{}", dim - 1));
-                    } else {
-                        panic!("invalid current_side");
-                    }
-                } else {
-                    res.push(format!("-d{}", current.z));
-                }
-            } else {
-                if current.x != solved.x {
-                    if current_side == 'D' {
-                        res.push("d0".to_string());
-                    } else if current_side == 'U' {
-                        res.push(format!("-d{}", dim - 1));
-                    } else {
-                        panic!("invalid current_side");
-                    }
-                } else {
-                    res.push(format!("-r{}", dim - 2));
-                }
-            }
-        } else {
-            if current_side == 'F' {
-                res.push(format!("-d{}", current.z));
-            } else if current_side == 'B' {
-                if current.z <= solved.z {
-                    res.push(format!("d{}", current.z));
-                } else {
-                    res.push(format!("-f{}", dim - 1));
-                }
-            } else if current_side == 'L' {
-                if current.y != dim - 2 {
-                    res.push(format!("-r{}", dim - 1));
-                } else if current.z != solved.z {
-                    res.push(format!("-r{}", dim - 1));
-                } else {
-                    res.push(format!("d{}", current.z));
-                }
-            } else {
-                res.push(format!("-f{}", current.y));
-            }
-        }
-    } else {
-        if row == 0 {
-            if current_side == 'F' {
-                if current.z < solved.z && current.x >= solved.x {
-                    res.push(format!("r{}", dim - 1 - current.x));
-                } else {
-                    res.push(format!("d{}", current.z));
-                }
-            } else if current_side == 'B' {
-                if current.x == solved.x && current.z != solved.z {
-                    res.push(format!("r{}", dim - 2 - column));
-                    res.push(format!("r{}", dim - 2 - column));
-                } else {
-                    res.push(format!("-f{}", dim - 1));
-                };
-            } else {
-                if current.y == dim - 2 {
-                    if current.z != dim - 1 {
-                        res.push(format!("-f{}", dim - 2 - row));
-                    } else {
-                        if current.x != solved.x {
-                            res.push(format!("-d{}", dim - 1));
-                        } else {
-                            res.push(format!("-r{}", dim - 2 - column));
-                        };
-                    }
-                } else {
-                    if current_side == 'D' {
-                        res.push("d0".to_string());
-                    } else if current_side == 'U' {
-                        res.push(format!("-d{}", dim - 1));
-                    } else if current_side == 'R' {
-                        res.push("r0".to_string());
-                    } else if current_side == 'L' {
-                        res.push(format!("-r{}", dim - 1));
-                    } else {
-                        panic!("invalid current_side");
-                    }
-                }
-            }
-        } else {
-            if current_side == 'F' {
-                if current.z < solved.z {
-                    res.push(format!("-d{}", current.z));
-                } else {
-                    res.push(format!("-d{}", current.z));
-                    res.push(format!("-f{}", dim - 1 - current.x));
-                    res.push(format!("d{}", current.z));
-                }
-            } else if current_side == 'B' {
-                if current.z == solved.z {
-                    if solved.x == current.x {
-                        res.push(format!("-d{}", current.z));
-                        res.push(format!("-f{}", dim - 1 - current.x));
-                        res.push(format!("d{}", current.z));
-                    } else {
-                        res.push(format!("-d{}", current.z));
-                        res.push("r0".to_string());
-                        res.push(format!("d{}", current.z));
-                    }
-                } else {
-                    res.push(format!("-f{}", dim - 1));
-                }
-            } else {
-                if current_side != 'U' {
-                    res.push(format!("f{}", current.y));
-                } else {
-                    if current.x != solved.x || current.y != solved.z {
-                        res.push(format!("-d{}", dim - 1));
-                    } else {
-                        res.push(format!("d{}", dim - 1));
-                        res.push(format!("d{}", solved.z));
-                        res.push(format!("f{}", current.x));
-                        res.push(format!("-d{}", solved.z));
-                    }
-                }
-            }
-        }
-    }
-    res
-}
-
-#[allow(dead_code)]
-pub fn solve_yellow_middle_impl(current: &P3, solved: &P3, dim: usize) -> Vec<String> {
-    let current_side = p3_to_side(current, dim);
-    let middle = dim / 2;
-    let mut res: Vec<String> = Vec::new();
-
-    if current_side == 'B' {
-        let check_middle = dim % 2 == 1 && current.z == middle;
-        res.push(format!("-d{}", current.z));
-        res.push("r0".to_string());
-        if !check_middle {
-            res.push("r0".to_string());
-        }
-        res.push(format!("d{}", current.z));
-        if check_middle {
-            res.push("r0".to_string());
-        }
-        res.push(format!("f{}", current.x));
-        if check_middle {
-            res.push("r0".to_string());
-        }
-        res.push(format!("-d{}", current.z));
-        res.push("r0".to_string());
-        if !check_middle {
-            res.push("r0".to_string());
-        }
-        res.push(format!("d{}", current.z));
-    } else {
-        if current_side != 'R' {
-            res.push(format!("f{}", current.y));
-        } else {
-            if current.y != dim - (solved.x + 1) || current.z != solved.z {
-                res.push("r0".to_string());
-            } else {
-                res.push(format!("-f{}", current.y));
-                res.push(format!("-d{}", current.z));
-                if (current.y >= middle && current.z >= middle)
-                    || (current.y < middle && current.z < middle)
-                {
-                    res.push(format!("-r{}", dim - 1));
-                } else {
-                    res.push(format!("r{}", dim - 1));
-                }
-                res.push(format!("f{}", current.y));
-                if (current.y >= middle && current.z >= middle)
-                    || (current.y < middle && current.z < middle)
-                {
-                    res.push(format!("r{}", dim - 1));
-                } else {
-                    res.push(format!("-r{}", dim - 1));
-                }
-                res.push(format!("d{}", current.z));
-            }
-        }
-    }
-    res
 }
 
 fn solve_first_two_faces_impl(
@@ -785,7 +551,7 @@ fn solve_first_two_faces_edge(
                 best_apply_list.push(*i);
                 break;
             }
-            for i in best_action_idx..best_action_idx + 1 {
+            for i in 0..perm_actions.len() {
                 let moved_perms = perms
                     .iter()
                     .map(|p| {
@@ -923,7 +689,10 @@ fn solve_four_faces_corner(
     (state, moves_str)
 }
 
-fn calc_sequence_list_diff(seq0: &Vec<Vec<String>>, seq1: &Vec<Vec<String>>) -> Vec<(i32, usize)> {
+pub fn calc_sequence_list_diff(
+    seq0: &Vec<Vec<String>>,
+    seq1: &Vec<Vec<String>>,
+) -> Vec<(i32, usize)> {
     let mut res = Vec::new();
     for i in 0..seq0.len() {
         let mut diff = 0;
@@ -986,7 +755,7 @@ fn solve_four_faces_edge(
                 best_apply_list.push(*i);
                 break;
             }
-            for i in best_action_idx..best_action_idx + 1 {
+            for i in 0..perm_actions.len() {
                 let moved_perms = perms
                     .iter()
                     .map(|p| {
@@ -1495,7 +1264,8 @@ pub fn sequence_moves_four_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<Strin
     res
 }
 
-fn sequence_moves_first_two_corner(dim: usize, pos: usize) -> Vec<Vec<String>> {
+#[allow(dead_code)]
+pub fn sequence_moves_first_two_corner(dim: usize, pos: usize) -> Vec<Vec<String>> {
     let base = sequence_moves_four_corner(dim, pos);
     let mut res = base.clone();
     res.extend(base.iter().map(|v| rot_sequence_r(v, dim)));
@@ -1503,7 +1273,8 @@ fn sequence_moves_first_two_corner(dim: usize, pos: usize) -> Vec<Vec<String>> {
     res
 }
 
-fn sequence_moves_first_two_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> {
+#[allow(dead_code)]
+pub fn sequence_moves_first_two_edge(dim: usize, y: usize, x: usize) -> Vec<Vec<String>> {
     let base = sequence_moves_four_edge(dim, y, x);
     let mut res = base.clone();
     res.extend(base.iter().map(|v| rot_sequence_r(v, dim)));
@@ -2017,22 +1788,21 @@ fn bfs_four_impl(
             }
         }
     }
-    let mut reachable = 0;
-
-    let mut max_cost = 0;
-    let mut max_idx = 0;
-    for (idx, c) in cost.iter().enumerate() {
-        if *c == std::i32::MAX {
-            continue;
-        }
-        reachable += 1;
-        if *c > max_cost {
-            max_cost = *c;
-            max_idx = idx;
-        }
-    }
-    println!("reachable: {}", reachable);
-    println!("max_cost: {} {:?}", max_cost, perm_list[max_idx]);
+    // let mut reachable = 0;
+    // let mut max_cost = 0;
+    // let mut max_idx = 0;
+    // for (idx, c) in cost.iter().enumerate() {
+    //     if *c == std::i32::MAX {
+    //         continue;
+    //     }
+    //     reachable += 1;
+    //     if *c > max_cost {
+    //         max_cost = *c;
+    //         max_idx = idx;
+    //     }
+    // }
+    // println!("reachable: {}", reachable);
+    // println!("max_cost: {} {:?}", max_cost, perm_list[max_idx]);
     (prev_state, prev_action, cost)
 }
 

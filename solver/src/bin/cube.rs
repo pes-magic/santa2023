@@ -1,5 +1,4 @@
 // Reference
-// * https://github.com/merpig/RubiksProgram
 // * https://www.kaggle.com/code/seanbearden/solve-all-nxnxn-cubes-w-traditional-solution-state
 // Dependencies
 // * https://github.com/dwalton76/rubiks-cube-NxNxN-solver
